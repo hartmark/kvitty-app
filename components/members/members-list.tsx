@@ -17,12 +17,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Spinner } from "@/components/ui/spinner";
+import { Badge } from "@/components/ui/badge";
 
 interface MembersListProps {
   workspaceId: string;
+  currentUserId?: string;
 }
 
-export function MembersList({ workspaceId }: MembersListProps) {
+export function MembersList({ workspaceId, currentUserId }: MembersListProps) {
   const { data: members, isLoading } = trpc.members.list.useQuery({
     workspaceId,
   });
@@ -53,7 +55,12 @@ export function MembersList({ workspaceId }: MembersListProps) {
               {members.map((member) => (
                 <TableRow key={member.id}>
                   <TableCell className="font-medium">
-                    {member.name || "—"}
+                    <div className="flex items-center gap-2">
+                      {member.name || "—"}
+                      {member.userId === currentUserId && (
+                        <Badge variant="secondary">Du</Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>{member.email}</TableCell>
                   <TableCell>

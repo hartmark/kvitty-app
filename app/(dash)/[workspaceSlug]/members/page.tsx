@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { workspaces } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { getSession } from "@/lib/session";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -27,6 +28,7 @@ export default async function MembersPage({
 }) {
   const { workspaceSlug } = await params;
 
+  const session = await getSession();
   const workspace = await db.query.workspaces.findFirst({
     where: eq(workspaces.slug, workspaceSlug),
   });
@@ -67,7 +69,7 @@ export default async function MembersPage({
           </p>
         </div>
 
-        <MembersList workspaceId={workspace.id} />
+        <MembersList workspaceId={workspace.id} currentUserId={session?.user?.id} />
         <PendingInvites workspaceId={workspace.id} />
         <InviteForm workspaceId={workspace.id} workspaceSlug={workspaceSlug} />
       </div>

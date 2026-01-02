@@ -7,9 +7,9 @@ import { useState, useEffect } from "react";
 import { getUserCookie, type UserCookie } from "@/lib/user-cookie";
 
 const navItems = [
-  { label: "Funktioner", href: "#funktioner" },
-  { label: "Priser", href: "#priser" },
-  { label: "Om oss", href: "#om-oss" },
+  { label: "Funktioner", href: "/funktioner" },
+  { label: "Priser", href: "/#priser" },
+  { label: "Om oss", href: "/#om-oss" },
 ];
 
 export function Header() {
@@ -34,13 +34,13 @@ export function Header() {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-6">
             {navItems.map((item) => (
-              <a
+              <Link
                 key={item.href}
                 href={item.href}
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 {item.label}
-              </a>
+              </Link>
             ))}
           </nav>
 
