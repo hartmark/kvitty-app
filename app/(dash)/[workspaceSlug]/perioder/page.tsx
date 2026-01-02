@@ -23,7 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Lock, Calendar } from "@phosphor-icons/react";
+import { Lock, Calendar } from "@phosphor-icons/react/dist/ssr";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale/sv";
 
