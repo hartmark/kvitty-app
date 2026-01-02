@@ -12,13 +12,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
   Table,
   TableBody,
   TableCell,
@@ -36,19 +29,11 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc/client";
 import { useWorkspace } from "@/components/workspace-provider";
+import { CreatePayrollRunDialog } from "@/components/payroll/create-payroll-run-dialog";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   draft: { label: "Utkast", color: "bg-gray-100 text-gray-700" },
@@ -61,28 +46,10 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 export default function PayrollPage() {
   const { workspace, periods } = useWorkspace();
   const [createOpen, setCreateOpen] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState(periods[0]?.id || "");
-  const [month, setMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
-  });
-  const [paymentDate, setPaymentDate] = useState(() => {
-    const now = new Date();
-    now.setDate(25);
-    return now.toISOString().split("T")[0];
-  });
-
   const utils = trpc.useUtils();
 
   const { data: runs, isLoading } = trpc.payroll.listRuns.useQuery({
     workspaceId: workspace.id,
-  });
-
-  const createRun = trpc.payroll.createRun.useMutation({
-    onSuccess: () => {
-      utils.payroll.listRuns.invalidate();
-      setCreateOpen(false);
-    },
   });
 
   const formatCurrency = (value: string | null) => {
@@ -105,7 +72,7 @@ export default function PayrollPage() {
           <SidebarTrigger className="-ml-1" />
           <Separator
             orientation="vertical"
-            className="mr-2 data-[orientation=vertical]:h-4"
+            className="mr-2 data-[orientation=vertical]:h-4 mt-1.5"
           />
           <Breadcrumb>
             <BreadcrumbList>
@@ -201,72 +168,12 @@ export default function PayrollPage() {
         </Card>
       )}
 
-      {/* Create Payroll Run Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Ny lönekörning</DialogTitle>
-          </DialogHeader>
-
-          <FieldGroup>
-            <Field>
-              <FieldLabel>Räkenskapsperiod</FieldLabel>
-              <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Välj period" />
-                </SelectTrigger>
-                <SelectContent>
-                  {periods.map((period) => (
-                    <SelectItem key={period.id} value={period.id}>
-                      {period.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="month">Lönemånad (YYYYMM)</FieldLabel>
-              <Input
-                id="month"
-                value={month}
-                onChange={(e) => setMonth(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder="202501"
-                maxLength={6}
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="paymentDate">Utbetalningsdatum</FieldLabel>
-              <Input
-                id="paymentDate"
-                type="date"
-                value={paymentDate}
-                onChange={(e) => setPaymentDate(e.target.value)}
-              />
-            </Field>
-          </FieldGroup>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
-              Avbryt
-            </Button>
-            <Button
-              onClick={() =>
-                createRun.mutate({
-                  workspaceId: workspace.id,
-                  fiscalPeriodId: selectedPeriod,
-                  period: month,
-                  paymentDate,
-                })
-              }
-              disabled={createRun.isPending || !selectedPeriod || month.length !== 6}
-            >
-              {createRun.isPending ? <Spinner /> : "Skapa"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CreatePayrollRunDialog
+        workspaceId={workspace.id}
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        periods={periods}
+      />
       </div>
     </>
   );

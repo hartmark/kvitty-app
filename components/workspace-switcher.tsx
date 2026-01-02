@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CaretUpDown, Plus, Receipt } from "@phosphor-icons/react";
+import { CaretUpDown, Plus, Receipt, Users, Gear } from "@phosphor-icons/react";
 
 import {
   DropdownMenu,
@@ -18,9 +18,21 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { trpc } from "@/lib/trpc/client";
 import type { workspaces } from "@/lib/db/schema";
 
 type Workspace = typeof workspaces.$inferSelect;
+
+function formatOrgNumber(orgNumber: string | null | undefined): string {
+  if (!orgNumber) return "";
+  if (orgNumber.length === 10) {
+    return `${orgNumber.slice(0, 6)}-${orgNumber.slice(6)}`;
+  }
+  if (orgNumber.length === 12) {
+    return `${orgNumber.slice(0, 10)}-${orgNumber.slice(10)}`;
+  }
+  return orgNumber;
+}
 
 export function WorkspaceSwitcher({
   workspaces,
@@ -30,6 +42,16 @@ export function WorkspaceSwitcher({
   currentWorkspace: Workspace;
 }) {
   const { isMobile } = useSidebar();
+  const displayValue = currentWorkspace.orgNumber
+    ? formatOrgNumber(currentWorkspace.orgNumber)
+    : currentWorkspace.slug;
+
+  const { data: members } = trpc.members.list.useQuery(
+    { workspaceId: currentWorkspace.id },
+    { enabled: !!currentWorkspace.id }
+  );
+
+  const memberCount = members?.length ?? 0;
 
   return (
     <SidebarMenu>
@@ -48,40 +70,65 @@ export function WorkspaceSwitcher({
                   {currentWorkspace.name}
                 </span>
                 <span className="truncate text-xs text-muted-foreground">
-                  {currentWorkspace.slug}
+                  {displayValue}
                 </span>
               </div>
               <CaretUpDown className="ml-auto size-4" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+            className="w-(--radix-dropdown-menu-trigger-width) min-w-64 rounded-lg"
             align="start"
             side={isMobile ? "bottom" : "right"}
             sideOffset={4}
           >
-            <DropdownMenuLabel className="text-muted-foreground text-xs">
-              Arbetsytor
-            </DropdownMenuLabel>
+            <DropdownMenuLabel>Arbetsytor</DropdownMenuLabel>
             {workspaces.map((workspace) => (
               <DropdownMenuItem key={workspace.id} asChild>
-                <Link href={`/${workspace.slug}`} className="gap-2 p-2">
-                  <div className="flex size-6 items-center justify-center rounded-md border">
-                    <Receipt className="size-3.5 shrink-0" weight="duotone" />
+                <Link href={`/${workspace.slug}`}>
+                  <Receipt className="size-4" weight="duotone" />
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <span className="truncate font-medium">{workspace.name}</span>
+                    {workspace.orgNumber && (
+                      <span className="truncate text-xs text-muted-foreground">
+                        {formatOrgNumber(workspace.orgNumber)}
+                      </span>
+                    )}
                   </div>
-                  <span className="truncate">{workspace.name}</span>
                 </Link>
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
+            <DropdownMenuLabel>{currentWorkspace.name}</DropdownMenuLabel>
             <DropdownMenuItem asChild>
-              <Link href="/new-workspace" className="gap-2 p-2">
-                <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
-                  <Plus className="size-4" />
+              <Link href={`/${currentWorkspace.slug}/members`}>
+                <Users className="size-4" weight="duotone" />
+                <div className="flex flex-col flex-1 min-w-0">
+                  <span className="font-medium">Medlemmar</span>
+                  <span className="text-xs text-muted-foreground">
+                    {memberCount} {memberCount === 1 ? "medlem" : "medlemmar"}
+                  </span>
                 </div>
-                <div className="text-muted-foreground font-medium">
-                  Ny arbetsyta
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/${currentWorkspace.slug}/settings`}>
+                <Gear className="size-4" weight="duotone" />
+                <div className="flex flex-col flex-1 min-w-0">
+                  <span className="font-medium">Inställningar</span>
+                  <span className="text-xs text-muted-foreground">
+                    {currentWorkspace.mode === "full_bookkeeping"
+                      ? "Fullständig bokföring"
+                      : "Enkel bokföring"}
+                  </span>
                 </div>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/new-workspace">
+                <Plus className="size-4" />
+                <span className="font-medium">Ny arbetsyta</span>
               </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>

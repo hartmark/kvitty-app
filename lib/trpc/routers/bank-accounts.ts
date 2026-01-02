@@ -50,6 +50,23 @@ export const bankAccountsRouter = router({
       return account;
     }),
 
+  getByAccountNumber: workspaceProcedure
+    .input(z.object({ accountNumber: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const account = await ctx.db.query.bankAccounts.findFirst({
+        where: and(
+          eq(bankAccounts.accountNumber, input.accountNumber),
+          eq(bankAccounts.workspaceId, ctx.workspaceId)
+        ),
+      });
+
+      if (!account) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      return account;
+    }),
+
   create: workspaceProcedure
     .input(createBankAccountSchema)
     .mutation(async ({ ctx, input }) => {

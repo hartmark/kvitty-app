@@ -341,6 +341,7 @@ export const journalEntriesRouter = router({
         accountNumber: z.number(),
         fiscalPeriodId: z.string().optional(),
         limit: z.number().min(1).max(100).default(50),
+        offset: z.number().min(0).default(0),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -361,9 +362,24 @@ export const journalEntriesRouter = router({
         .where(
           and(baseWhere, eq(journalEntryLines.accountNumber, input.accountNumber))
         )
-        .orderBy(desc(journalEntries.entryDate))
-        .limit(input.limit);
+        .orderBy(desc(journalEntries.entryDate), desc(journalEntries.verificationNumber))
+        .limit(input.limit)
+        .offset(input.offset);
 
-      return entries;
+      const totalResult = await ctx.db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(journalEntryLines)
+        .innerJoin(journalEntries, eq(journalEntryLines.journalEntryId, journalEntries.id))
+        .where(
+          and(baseWhere, eq(journalEntryLines.accountNumber, input.accountNumber))
+        );
+
+      const total = Number(totalResult[0]?.count || 0);
+
+      return {
+        entries,
+        total,
+        hasMore: input.offset + input.limit < total,
+      };
     }),
 });

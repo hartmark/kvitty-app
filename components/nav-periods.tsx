@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { CaretRight, Plus, FileText } from "@phosphor-icons/react";
+import { CaretRight, Plus, FileText, ArrowRight } from "@phosphor-icons/react";
 
 import {
   Collapsible,
@@ -38,6 +38,8 @@ export function NavPeriods({
   isFullMode?: boolean;
 }) {
   const pathname = usePathname();
+  const latestPeriods = periods.slice(0, 3);
+  const hasMorePeriods = periods.length > 3;
 
   return (
     <SidebarGroup>
@@ -56,9 +58,9 @@ export function NavPeriods({
                 <CaretRight className="ml-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
               </SidebarMenuButton>
             </CollapsibleTrigger>
-            <CollapsibleContent>
+            <CollapsibleContent className="overflow-hidden">
               <SidebarMenuSub>
-                {periods.map((period) => {
+                {latestPeriods.map((period) => {
                   const periodPath = `/${workspaceSlug}/${period.urlSlug}`;
                   const isActive = pathname === periodPath;
 
@@ -72,6 +74,16 @@ export function NavPeriods({
                     </SidebarMenuSubItem>
                   );
                 })}
+                {hasMorePeriods && (
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton asChild>
+                      <Link href={`/${workspaceSlug}/perioder`}>
+                        <ArrowRight className="size-3 mr-1" />
+                        <span>Visa alla perioder</span>
+                      </Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                )}
                 {periods.length === 0 && (
                   <SidebarMenuSubItem>
                     <SidebarMenuSubButton

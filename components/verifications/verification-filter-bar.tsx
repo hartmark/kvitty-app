@@ -6,6 +6,7 @@ import { MagnifyingGlass, X } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Separator } from "@/components/ui/separator";
 
 interface VerificationFilterBarProps {
   search: string;
@@ -81,19 +82,15 @@ export function VerificationFilterBar({
         )}
       </div>
 
+      <Separator orientation="vertical" className="hidden sm:block" />
+
       {/* Date Range Filter */}
       <div className="flex items-center gap-2">
-        <label className="text-sm text-muted-foreground whitespace-nowrap">
-          Från
-        </label>
         <DatePicker
           value={dateFrom}
           onChange={(value) => updateParams({ dateFrom: value || null })}
           placeholder="Från datum"
         />
-        <label className="text-sm text-muted-foreground whitespace-nowrap">
-          Till
-        </label>
         <DatePicker
           value={dateTo}
           onChange={(value) => updateParams({ dateTo: value || null })}

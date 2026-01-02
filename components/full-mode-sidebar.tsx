@@ -12,6 +12,7 @@ import {
   UserList,
   Receipt,
   Plus,
+  Minus,
   Lock,
   AddressBook,
   Invoice,
@@ -125,6 +126,46 @@ export function FullModeSidebar({
             </SidebarMenu>
           </SidebarGroup>
 
+          {/* Bokföring */}
+          <NavPeriods
+            periods={periods}
+            workspaceSlug={workspace.slug}
+            onAddPeriod={() => setAddPeriodOpen(true)}
+            onAddVerification={() => setAddEntryOpen(true)}
+            isFullMode
+          />
+
+          {/* Försäljning */}
+          <SidebarGroup>
+            <SidebarGroupLabel>Försäljning</SidebarGroupLabel>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === `/${workspace.slug}/kunder`}
+                  tooltip="Kunder"
+                >
+                  <Link href={`/${workspace.slug}/kunder`}>
+                    <AddressBook className="size-4" weight="duotone" />
+                    <span>Kunder</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === `/${workspace.slug}/fakturor`}
+                  tooltip="Fakturor"
+                >
+                  <Link href={`/${workspace.slug}/fakturor`}>
+                    <Invoice className="size-4" weight="duotone" />
+                    <span>Fakturor</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+
           {/* Personal & Löner */}
           <SidebarGroup>
             <SidebarGroupLabel>Personal & Löner</SidebarGroupLabel>
@@ -158,14 +199,17 @@ export function FullModeSidebar({
 
           {/* Bank */}
           <SidebarGroup>
-            <Collapsible open={bankExpanded} onOpenChange={setBankExpanded}>
+            <Collapsible open={bankExpanded} onOpenChange={setBankExpanded} className="group/collapsible">
               <SidebarGroupLabel asChild>
                 <CollapsibleTrigger className="w-full flex items-center justify-between group">
                   <span>Bank</span>
-                  <Plus className="size-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative size-3.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Plus className={`absolute inset-0 size-3.5 transition-all duration-200 ${bankExpanded ? 'opacity-0 rotate-90' : 'opacity-100 rotate-0'}`} />
+                    <Minus className={`absolute inset-0 size-3.5 transition-all duration-200 ${bankExpanded ? 'opacity-100 rotate-0' : 'opacity-0 -rotate-90'}`} />
+                  </div>
                 </CollapsibleTrigger>
               </SidebarGroupLabel>
-              <CollapsibleContent>
+              <CollapsibleContent className="overflow-hidden">
                 <SidebarMenu>
                   {bankAccounts?.map((account) => (
                     <SidebarMenuItem key={account.id}>
@@ -195,46 +239,6 @@ export function FullModeSidebar({
               </CollapsibleContent>
             </Collapsible>
           </SidebarGroup>
-
-          {/* Försäljning */}
-          <SidebarGroup>
-            <SidebarGroupLabel>Försäljning</SidebarGroupLabel>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === `/${workspace.slug}/kunder`}
-                  tooltip="Kunder"
-                >
-                  <Link href={`/${workspace.slug}/kunder`}>
-                    <AddressBook className="size-4" weight="duotone" />
-                    <span>Kunder</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === `/${workspace.slug}/fakturor`}
-                  tooltip="Fakturor"
-                >
-                  <Link href={`/${workspace.slug}/fakturor`}>
-                    <Invoice className="size-4" weight="duotone" />
-                    <span>Fakturor</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroup>
-
-          {/* Bokföring */}
-          <NavPeriods
-            periods={periods}
-            workspaceSlug={workspace.slug}
-            onAddPeriod={() => setAddPeriodOpen(true)}
-            onAddVerification={() => setAddEntryOpen(true)}
-            isFullMode
-          />
 
           {/* Settings */}
           <SidebarGroup className="mt-auto">

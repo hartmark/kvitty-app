@@ -19,13 +19,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
   Table,
   TableBody,
   TableCell,
@@ -43,19 +36,12 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc/client";
 import { useWorkspace } from "@/components/workspace-provider";
+import { AddPayrollEntryDialog } from "@/components/payroll/add-payroll-entry-dialog";
+import { AgiPreviewDialog } from "@/components/payroll/agi-preview-dialog";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   draft: { label: "Utkast", color: "bg-gray-100 text-gray-700" },
@@ -72,8 +58,6 @@ export default function PayrollRunPage() {
   const runId = params.runId as string;
 
   const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
-  const [grossSalary, setGrossSalary] = useState("");
   const [agiPreviewOpen, setAgiPreviewOpen] = useState(false);
 
   const utils = trpc.useUtils();
@@ -85,15 +69,6 @@ export default function PayrollRunPage() {
 
   const { data: employees } = trpc.employees.list.useQuery({
     workspaceId: workspace.id,
-  });
-
-  const addEntry = trpc.payroll.addEntry.useMutation({
-    onSuccess: () => {
-      utils.payroll.getRun.invalidate();
-      setAddEmployeeOpen(false);
-      setSelectedEmployeeId("");
-      setGrossSalary("");
-    },
   });
 
   const removeEntry = trpc.payroll.removeEntry.useMutation({
@@ -160,7 +135,7 @@ export default function PayrollRunPage() {
           <SidebarTrigger className="-ml-1" />
           <Separator
             orientation="vertical"
-            className="mr-2 data-[orientation=vertical]:h-4"
+            className="mr-2 data-[orientation=vertical]:h-4 mt-1.5"
           />
           <Breadcrumb>
             <BreadcrumbList>
@@ -363,98 +338,22 @@ export default function PayrollRunPage() {
         </CardContent>
       </Card>
 
-      {/* Add Employee Dialog */}
-      <Dialog open={addEmployeeOpen} onOpenChange={setAddEmployeeOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Lägg till anställd i lönekörning</DialogTitle>
-          </DialogHeader>
+      <AddPayrollEntryDialog
+        payrollRunId={run.id}
+        workspaceId={workspace.id}
+        open={addEmployeeOpen}
+        onOpenChange={setAddEmployeeOpen}
+        availableEmployees={availableEmployees || []}
+        onSuccess={() => utils.payroll.getRun.invalidate()}
+      />
 
-          <FieldGroup>
-            <Field>
-              <FieldLabel>Anställd</FieldLabel>
-              <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Välj anställd" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableEmployees?.map((emp) => (
-                    <SelectItem key={emp.id} value={emp.id}>
-                      {emp.firstName} {emp.lastName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="grossSalary">Bruttolön</FieldLabel>
-              <Input
-                id="grossSalary"
-                type="number"
-                min="0"
-                step="100"
-                value={grossSalary}
-                onChange={(e) => setGrossSalary(e.target.value)}
-                placeholder="25000"
-              />
-            </Field>
-          </FieldGroup>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddEmployeeOpen(false)}>
-              Avbryt
-            </Button>
-            <Button
-              onClick={() =>
-                addEntry.mutate({
-                  payrollRunId: run.id,
-                  workspaceId: workspace.id,
-                  entry: {
-                    employeeId: selectedEmployeeId,
-                    grossSalary: parseFloat(grossSalary),
-                  },
-                })
-              }
-              disabled={addEntry.isPending || !selectedEmployeeId || !grossSalary}
-            >
-              {addEntry.isPending ? <Spinner /> : "Lägg till"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* AGI Preview Dialog */}
-      <Dialog open={agiPreviewOpen} onOpenChange={setAgiPreviewOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle>AGI-fil genererad</DialogTitle>
-          </DialogHeader>
-
-          <div className="overflow-auto max-h-[60vh] bg-muted p-4 rounded-lg">
-            <pre className="text-xs font-mono whitespace-pre-wrap">{run.agiXml}</pre>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAgiPreviewOpen(false)}>
-              Stäng
-            </Button>
-            <Button
-              onClick={() => {
-                const blob = new Blob([run.agiXml!], { type: "application/xml" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `AGI_${run.period}_${run.runNumber}.xml`;
-                a.click();
-              }}
-            >
-              <Download className="size-4 mr-2" />
-              Ladda ner
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AgiPreviewDialog
+        open={agiPreviewOpen}
+        onOpenChange={setAgiPreviewOpen}
+        agiXml={run.agiXml}
+        period={run.period}
+        runNumber={run.runNumber}
+      />
       </div>
     </>
   );

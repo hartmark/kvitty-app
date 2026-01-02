@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Plus, Bank, Trash, Pencil } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,42 +19,18 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
-import { AccountCombobox } from "@/components/journal-entry/account-combobox";
 import { trpc } from "@/lib/trpc/client";
 import { useWorkspace } from "@/components/workspace-provider";
 import { Badge } from "@/components/ui/badge";
+import { AddBankAccountDialog } from "@/components/bank/add-bank-account-dialog";
+import { DeleteBankAccountDialog } from "@/components/bank/delete-bank-account-dialog";
 
 export default function BankPage() {
   const { workspace } = useWorkspace();
   const [addOpen, setAddOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<string | null>(null);
-  const [selectedAccount, setSelectedAccount] = useState<{
-    number: number;
-    name: string;
-  } | null>(null);
-  const [customName, setCustomName] = useState("");
-  const [description, setDescription] = useState("");
 
   const utils = trpc.useUtils();
 
@@ -61,44 +38,11 @@ export default function BankPage() {
     workspaceId: workspace.id,
   });
 
-  const createAccount = trpc.bankAccounts.create.useMutation({
-    onSuccess: () => {
-      utils.bankAccounts.list.invalidate();
-      setAddOpen(false);
-      resetForm();
-    },
-  });
-
-  const deleteAccount = trpc.bankAccounts.delete.useMutation({
-    onSuccess: () => {
-      utils.bankAccounts.list.invalidate();
-      setDeleteOpen(false);
-      setAccountToDelete(null);
-    },
-  });
-
   const initializeDefaults = trpc.bankAccounts.initializeDefaults.useMutation({
     onSuccess: () => {
       utils.bankAccounts.list.invalidate();
     },
   });
-
-  const resetForm = () => {
-    setSelectedAccount(null);
-    setCustomName("");
-    setDescription("");
-  };
-
-  const handleCreate = () => {
-    if (!selectedAccount) return;
-
-    createAccount.mutate({
-      workspaceId: workspace.id,
-      accountNumber: selectedAccount.number,
-      name: customName || selectedAccount.name,
-      description: description || undefined,
-    });
-  };
 
   if (isLoading) {
     return (
@@ -115,7 +59,7 @@ export default function BankPage() {
           <SidebarTrigger className="-ml-1" />
           <Separator
             orientation="vertical"
-            className="mr-2 data-[orientation=vertical]:h-4"
+            className="mr-2 data-[orientation=vertical]:h-4 mt-1.5"
           />
           <Breadcrumb>
             <BreadcrumbList>
@@ -172,9 +116,12 @@ export default function BankPage() {
         ) : (
           <div className="grid gap-4">
             {accounts?.map((account) => (
-              <Card key={account.id}>
+              <Card key={account.id} className="hover:bg-accent/50 transition-colors">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <div className="flex items-center gap-3">
+                  <Link
+                    href={`/${workspace.slug}/bank/${account.accountNumber}`}
+                    className="flex items-center gap-3 flex-1"
+                  >
                     <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                       <Bank className="size-5" weight="duotone" />
                     </div>
@@ -186,7 +133,7 @@ export default function BankPage() {
                         <CardDescription>{account.description}</CardDescription>
                       )}
                     </div>
-                  </div>
+                  </Link>
                   <div className="flex items-center gap-2">
                     {account.isDefault && (
                       <Badge variant="blue">
@@ -196,11 +143,11 @@ export default function BankPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setAccountToDelete(account.id);
                         setDeleteOpen(true);
                       }}
-                      disabled={deleteAccount.isPending}
                       className="text-muted-foreground hover:text-destructive"
                     >
                       <Trash className="size-4" />
@@ -212,88 +159,18 @@ export default function BankPage() {
           </div>
         )}
 
-        {/* Add Account Dialog */}
-        <Dialog open={addOpen} onOpenChange={setAddOpen}>
-          <DialogContent className="min-w-lg">
-            <DialogHeader>
-              <DialogTitle>Lägg till bankkonto</DialogTitle>
-            </DialogHeader>
+        <AddBankAccountDialog
+          workspaceId={workspace.id}
+          open={addOpen}
+          onOpenChange={setAddOpen}
+        />
 
-            <FieldGroup>
-              <Field>
-                <FieldLabel>Välj konto från kontoplanen</FieldLabel>
-                <AccountCombobox
-                  value={selectedAccount?.number}
-                  onChange={(num, name) => {
-                    setSelectedAccount({ number: num, name });
-                    if (!customName) setCustomName(name);
-                  }}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="customName">Eget namn (valfritt)</FieldLabel>
-                <Input
-                  id="customName"
-                  value={customName}
-                  onChange={(e) => setCustomName(e.target.value)}
-                  placeholder="T.ex. Företagskonto Nordea"
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="description">Beskrivning (valfritt)</FieldLabel>
-                <Input
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="T.ex. Huvudkonto för löpande utgifter"
-                />
-              </Field>
-            </FieldGroup>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setAddOpen(false)}>
-                Avbryt
-              </Button>
-              <Button
-                onClick={handleCreate}
-                disabled={!selectedAccount || createAccount.isPending}
-              >
-                {createAccount.isPending ? <Spinner /> : "Lägg till"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Delete Account Alert Dialog */}
-        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Ta bort bankkonto</AlertDialogTitle>
-              <AlertDialogDescription>
-                Vill du ta bort detta konto? Denna åtgärd kan inte ångras.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Avbryt</AlertDialogCancel>
-              <AlertDialogAction
-                variant="destructive"
-                onClick={() => {
-                  if (accountToDelete) {
-                    deleteAccount.mutate({
-                      id: accountToDelete,
-                      workspaceId: workspace.id,
-                    });
-                  }
-                }}
-                disabled={deleteAccount.isPending}
-              >
-                {deleteAccount.isPending ? <Spinner /> : "Ta bort"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <DeleteBankAccountDialog
+          workspaceId={workspace.id}
+          accountId={accountToDelete}
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+        />
       </div>
     </>
   );
