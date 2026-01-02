@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { workspaces, fiscalPeriods, verifications } from "@/lib/db/schema";
@@ -16,6 +17,29 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { VerificationsTable } from "@/components/verifications/verifications-table";
 import { AddVerificationButton } from "@/components/verifications/add-verification-button";
 import { VerificationFilterBar } from "@/components/verifications/verification-filter-bar";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ workspaceSlug: string; periodSlug: string }>;
+}): Promise<Metadata> {
+  const { workspaceSlug, periodSlug } = await params;
+  const workspace = await db.query.workspaces.findFirst({
+    where: eq(workspaces.slug, workspaceSlug),
+  });
+  if (!workspace) {
+    return { title: "Period — Kvitty" };
+  }
+  const period = await db.query.fiscalPeriods.findFirst({
+    where: and(
+      eq(fiscalPeriods.workspaceId, workspace.id),
+      eq(fiscalPeriods.urlSlug, periodSlug)
+    ),
+  });
+  return {
+    title: period ? `${period.label} — Kvitty` : "Period — Kvitty",
+  };
+}
 
 export default async function PeriodPage({
   params,

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { workspaces, workspaceMembers, fiscalPeriods, lockedPeriods } from "@/lib/db/schema";
@@ -14,6 +15,10 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { PeriodsTable } from "@/components/periods/periods-table";
+
+export const metadata: Metadata = {
+  title: "Perioder — Kvitty",
+};
 
 export default async function PeriodsPage({
   params,

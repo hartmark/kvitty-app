@@ -1,9 +1,14 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { workspaceMembers } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { CreateWorkspaceForm } from "@/components/create-workspace-form";
+
+export const metadata: Metadata = {
+  title: "Dashboard — Kvitty",
+};
 
 export default async function DashboardRootPage() {
   const session = await getSession();

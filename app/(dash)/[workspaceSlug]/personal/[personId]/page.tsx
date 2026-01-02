@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { workspaces, employees, payrollEntries, payrollRuns } from "@/lib/db/schema";
@@ -19,6 +20,26 @@ import { decrypt } from "@/lib/utils/encryption";
 import { calculateAgeFromPersonnummer } from "@/lib/utils";
 import { PersonalDetailClient } from "./personal-detail-client";
 import { PersonalDetailActions } from "./personal-detail-actions";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ workspaceSlug: string; personId: string }>;
+}): Promise<Metadata> {
+  const { workspaceSlug, personId } = await params;
+  const workspace = await db.query.workspaces.findFirst({
+    where: eq(workspaces.slug, workspaceSlug),
+  });
+  if (!workspace) {
+    return { title: "Personal — Kvitty" };
+  }
+  const employee = await db.query.employees.findFirst({
+    where: and(eq(employees.id, personId), eq(employees.workspaceId, workspace.id)),
+  });
+  return {
+    title: employee ? `${employee.firstName} ${employee.lastName} — Kvitty` : "Personal — Kvitty",
+  };
+}
 
 export default async function PersonalDetailPage({
   params,

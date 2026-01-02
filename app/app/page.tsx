@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { workspaceMembers } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+
+export const metadata: Metadata = {
+  title: "App — Kvitty",
+};
 
 export default async function AppPage() {
   const session = await getSession();

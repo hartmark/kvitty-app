@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { workspaces } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -12,6 +13,10 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { WorkspaceSettingsForm } from "@/components/settings/workspace-settings-form";
+
+export const metadata: Metadata = {
+  title: "Inställningar — Kvitty",
+};
 
 export default async function SettingsPage({
   params,

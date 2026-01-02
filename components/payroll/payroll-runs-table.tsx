@@ -17,8 +17,8 @@ interface PayrollRun {
   period: string;
   runNumber: number;
   paymentDate: string;
-  totalGrossSalary: string;
-  totalEmployerContributions: string;
+  totalGrossSalary: string | null;
+  totalEmployerContributions: string | null;
   status: string;
 }
 

@@ -1,4 +1,9 @@
+import type { Metadata } from "next";
 import { Receipt } from "@phosphor-icons/react/dist/ssr";
+
+export const metadata: Metadata = {
+  title: "Kolla din inkorg — Kvitty",
+};
 
 export default async function MagicLinkSentPage({
   searchParams,

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { workspaces } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -14,6 +15,10 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { MembersList } from "@/components/members/members-list";
 import { PendingInvites } from "@/components/members/pending-invites";
 import { InviteForm } from "@/components/members/invite-form";
+
+export const metadata: Metadata = {
+  title: "Medlemmar — Kvitty",
+};
 
 export default async function MembersPage({
   params,

@@ -22,7 +22,7 @@ import type { InvoiceStatus } from "@/lib/db/schema";
 
 interface Invoice {
   id: string;
-  invoiceNumber: string;
+  invoiceNumber: number;
   customer: {
     name: string;
   };

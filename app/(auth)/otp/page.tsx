@@ -1,5 +1,10 @@
-import { Suspense } from "react"
-import { OTPForm } from "@/components/otp-form"
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { OTPForm } from "@/components/otp-form";
+
+export const metadata: Metadata = {
+  title: "Verifiera kod — Kvitty",
+};
 
 export default function OTPPage() {
   return (

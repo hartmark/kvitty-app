@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { workspaces, fiscalPeriods, verifications, auditLogs, user } from "@/lib/db/schema";
 import { eq, count, sum, desc, sql } from "drizzle-orm";
@@ -13,6 +14,20 @@ import { DashboardMetrics } from "@/components/dashboard/dashboard-metrics";
 import { VerificationChart } from "@/components/dashboard/verification-chart";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { PeriodsList } from "@/components/dashboard/periods-list";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ workspaceSlug: string }>;
+}): Promise<Metadata> {
+  const { workspaceSlug } = await params;
+  const workspace = await db.query.workspaces.findFirst({
+    where: eq(workspaces.slug, workspaceSlug),
+  });
+  return {
+    title: workspace ? `${workspace.name} — Kvitty` : "Översikt — Kvitty",
+  };
+}
 
 export default async function WorkspaceDashboardPage({
   params,

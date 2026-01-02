@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import {
@@ -9,6 +10,10 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { UserSettingsForm } from "@/components/settings/user-settings-form";
+
+export const metadata: Metadata = {
+  title: "Kontoinställningar — Kvitty",
+};
 
 export default async function UserSettingsPage() {
   const session = await getSession();

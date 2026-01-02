@@ -1,6 +1,11 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { CreateWorkspaceForm } from "@/components/create-workspace-form";
+
+export const metadata: Metadata = {
+  title: "Ny arbetsyta — Kvitty",
+};
 
 export default async function NewWorkspacePage() {
   const session = await getSession();

@@ -1,4 +1,9 @@
-import { SignupForm } from "@/components/signup-form"
+import type { Metadata } from "next";
+import { SignupForm } from "@/components/signup-form";
+
+export const metadata: Metadata = {
+  title: "Registrera dig — Kvitty",
+};
 
 export default function SignupPage() {
   return (
