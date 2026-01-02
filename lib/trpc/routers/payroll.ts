@@ -21,6 +21,7 @@ import {
   extractBirthYear,
 } from "@/lib/consts/employer-contribution-rates";
 import { generateAGIXml } from "@/lib/utils/agi-generator";
+import { decrypt } from "@/lib/utils/encryption";
 
 export const payrollRouter = router({
   listRuns: workspaceProcedure
@@ -50,7 +51,16 @@ export const payrollRouter = router({
         limit: input.limit,
       });
 
-      return runs;
+      return runs.map((run) => ({
+        ...run,
+        entries: run.entries.map((entry) => ({
+          ...entry,
+          employee: {
+            ...entry.employee,
+            personalNumber: decrypt(entry.employee.personalNumber),
+          },
+        })),
+      }));
     }),
 
   getRun: workspaceProcedure
@@ -81,7 +91,16 @@ export const payrollRouter = router({
         throw new TRPCError({ code: "NOT_FOUND" });
       }
 
-      return run;
+      return {
+        ...run,
+        entries: run.entries.map((entry) => ({
+          ...entry,
+          employee: {
+            ...entry.employee,
+            personalNumber: decrypt(entry.employee.personalNumber),
+          },
+        })),
+      };
     }),
 
   createRun: workspaceProcedure
@@ -150,7 +169,8 @@ export const payrollRouter = router({
       }
 
       // Calculate tax and employer contributions
-      const birthYear = extractBirthYear(employee.personalNumber);
+      const decryptedPersonalNumber = decrypt(employee.personalNumber);
+      const birthYear = extractBirthYear(decryptedPersonalNumber);
       const employerContributions = calculateEmployerContributions(
         input.entry.grossSalary,
         birthYear
@@ -218,7 +238,8 @@ export const payrollRouter = router({
       }
 
       const grossSalary = input.grossSalary ?? parseFloat(entry.grossSalary);
-      const birthYear = extractBirthYear(entry.employee.personalNumber);
+      const decryptedPersonalNumber = decrypt(entry.employee.personalNumber);
+      const birthYear = extractBirthYear(decryptedPersonalNumber);
       const employerContributions = calculateEmployerContributions(grossSalary, birthYear);
       const taxDeduction = Math.round(grossSalary * 0.3);
       const netSalary = grossSalary - taxDeduction;
@@ -310,7 +331,8 @@ export const payrollRouter = router({
       // Recalculate all entries
       for (const entry of run.entries) {
         const grossSalary = parseFloat(entry.grossSalary);
-        const birthYear = extractBirthYear(entry.employee.personalNumber);
+        const decryptedPersonalNumber = decrypt(entry.employee.personalNumber);
+        const birthYear = extractBirthYear(decryptedPersonalNumber);
         const employerContributions = calculateEmployerContributions(grossSalary, birthYear);
         const taxDeduction = Math.round(grossSalary * 0.3);
         const netSalary = grossSalary - taxDeduction;
@@ -489,10 +511,18 @@ export const payrollRouter = router({
         });
       }
 
+      const entriesWithDecryptedPersonalNumbers = run.entries.map((entry) => ({
+        ...entry,
+        employee: {
+          ...entry.employee,
+          personalNumber: decrypt(entry.employee.personalNumber),
+        },
+      }));
+
       const agiXml = generateAGIXml({
         workspace,
         payrollRun: run,
-        entries: run.entries,
+        entries: entriesWithDecryptedPersonalNumbers,
       });
 
       const [updated] = await ctx.db

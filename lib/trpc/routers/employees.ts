@@ -7,6 +7,7 @@ import {
   createEmployeeSchema,
   updateEmployeeSchema,
 } from "@/lib/validations/employee";
+import { encrypt, decrypt } from "@/lib/utils/encryption";
 
 export const employeesRouter = router({
   list: workspaceProcedure
@@ -26,7 +27,10 @@ export const employeesRouter = router({
         orderBy: (emp, { asc }) => [asc(emp.lastName), asc(emp.firstName)],
       });
 
-      return employeeList;
+      return employeeList.map((emp) => ({
+        ...emp,
+        personalNumber: decrypt(emp.personalNumber),
+      }));
     }),
 
   get: workspaceProcedure
@@ -52,12 +56,30 @@ export const employeesRouter = router({
         throw new TRPCError({ code: "NOT_FOUND" });
       }
 
-      return employee;
+      return {
+        ...employee,
+        personalNumber: decrypt(employee.personalNumber),
+      };
     }),
 
   create: workspaceProcedure
     .input(createEmployeeSchema)
     .mutation(async ({ ctx, input }) => {
+      // Check employee limit (max 25 active employees)
+      const activeEmployeeCount = await ctx.db.query.employees.findMany({
+        where: and(
+          eq(employees.workspaceId, ctx.workspaceId),
+          eq(employees.isActive, true)
+        ),
+      });
+
+      if (activeEmployeeCount.length >= 25) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Maximalt 25 anställda tillåtna",
+        });
+      }
+
       // Normalize personal number to 12 digits
       let personalNumber = input.personalNumber.replace(/\D/g, "");
       if (personalNumber.length === 10) {
@@ -72,14 +94,17 @@ export const employeesRouter = router({
       }
 
       // Check for duplicate personal number
-      const existing = await ctx.db.query.employees.findFirst({
-        where: and(
-          eq(employees.workspaceId, ctx.workspaceId),
-          eq(employees.personalNumber, personalNumber)
-        ),
+      // Since we can't compare encrypted values directly, we need to decrypt all employees
+      const allEmployees = await ctx.db.query.employees.findMany({
+        where: eq(employees.workspaceId, ctx.workspaceId),
       });
 
-      if (existing) {
+      const duplicate = allEmployees.find((emp) => {
+        const decrypted = decrypt(emp.personalNumber);
+        return decrypted === personalNumber;
+      });
+
+      if (duplicate) {
         throw new TRPCError({
           code: "CONFLICT",
           message: "En anställd med detta personnummer finns redan",
@@ -90,7 +115,7 @@ export const employeesRouter = router({
         .insert(employees)
         .values({
           workspaceId: ctx.workspaceId,
-          personalNumber,
+          personalNumber: encrypt(personalNumber),
           firstName: input.firstName,
           lastName: input.lastName,
           email: input.email || null,
@@ -104,7 +129,10 @@ export const employeesRouter = router({
         })
         .returning();
 
-      return employee;
+      return {
+        ...employee,
+        personalNumber: decrypt(employee.personalNumber),
+      };
     }),
 
   update: workspaceProcedure
@@ -145,7 +173,10 @@ export const employeesRouter = router({
         .where(eq(employees.id, input.id))
         .returning();
 
-      return updated;
+      return {
+        ...updated,
+        personalNumber: decrypt(updated.personalNumber),
+      };
     }),
 
   archive: workspaceProcedure
@@ -172,6 +203,9 @@ export const employeesRouter = router({
         .where(eq(employees.id, input.id))
         .returning();
 
-      return updated;
+      return {
+        ...updated,
+        personalNumber: decrypt(updated.personalNumber),
+      };
     }),
 });

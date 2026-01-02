@@ -39,6 +39,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc/client";
 import { useWorkspace } from "@/components/workspace-provider";
+import { calculateAgeFromPersonnummer } from "@/lib/utils";
 
 export default function PersonalPage() {
   const { workspace } = useWorkspace();
@@ -60,6 +61,9 @@ export default function PersonalPage() {
   const { data: employees, isLoading } = trpc.employees.list.useQuery({
     workspaceId: workspace.id,
   });
+
+  const activeEmployeeCount = employees?.filter((e) => e.isActive).length ?? 0;
+  const isAtLimit = activeEmployeeCount >= 25;
 
   const createEmployee = trpc.employees.create.useMutation({
     onSuccess: () => {
@@ -137,7 +141,7 @@ export default function PersonalPage() {
               Hantera anställda för lönekörningar
             </p>
           </div>
-          <Button onClick={() => setAddOpen(true)}>
+          <Button onClick={() => !isAtLimit && setAddOpen(true)} disabled={isAtLimit}>
             <Plus className="size-4 mr-2" />
             Lägg till anställd
           </Button>
@@ -151,7 +155,7 @@ export default function PersonalPage() {
               <p className="text-muted-foreground text-sm mb-4">
                 Lägg till anställda för att kunna köra löner.
               </p>
-              <Button onClick={() => setAddOpen(true)}>
+              <Button onClick={() => !isAtLimit && setAddOpen(true)} disabled={isAtLimit}>
                 <Plus className="size-4 mr-2" />
                 Lägg till anställd
               </Button>
@@ -162,26 +166,30 @@ export default function PersonalPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Namn</TableHead>
-                  <TableHead>Personnummer</TableHead>
-                  <TableHead>E-post</TableHead>
-                  <TableHead>Telefon</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[100px]"></TableHead>
+                  <TableHead className="px-4">Namn</TableHead>
+                  <TableHead className="px-4">Personnummer</TableHead>
+                  <TableHead className="px-4">E-post</TableHead>
+                  <TableHead className="px-4">Telefon</TableHead>
+                  <TableHead className="px-4">Status</TableHead>
+                  <TableHead className="w-[100px] px-4"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {employees?.map((employee) => (
                   <TableRow key={employee.id}>
-                    <TableCell className="font-medium">
+                    <TableCell className="px-4 font-medium">
                       {employee.firstName} {employee.lastName}
                     </TableCell>
-                    <TableCell className="font-mono text-sm">
+                    <TableCell className="px-4 font-mono text-sm">
                       {employee.personalNumber}
+                      {(() => {
+                        const age = calculateAgeFromPersonnummer(employee.personalNumber);
+                        return age !== null ? ` (${age} år)` : null;
+                      })()}
                     </TableCell>
-                    <TableCell>{employee.email || "-"}</TableCell>
-                    <TableCell>{employee.phone || "-"}</TableCell>
-                    <TableCell>
+                    <TableCell className="px-4">{employee.email || "-"}</TableCell>
+                    <TableCell className="px-4">{employee.phone || "-"}</TableCell>
+                    <TableCell className="px-4">
                       {employee.isActive ? (
                         <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                           Aktiv
@@ -192,7 +200,7 @@ export default function PersonalPage() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="px-4">
                       {employee.isActive && (
                         <Button
                           variant="ghost"
@@ -221,13 +229,18 @@ export default function PersonalPage() {
 
         {/* Add Employee Dialog */}
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="min-w-lg">
             <DialogHeader>
               <DialogTitle>Lägg till anställd</DialogTitle>
             </DialogHeader>
 
             <form onSubmit={handleCreate}>
               <FieldGroup>
+                {isAtLimit && (
+                  <FieldError>
+                    Maximalt 25 anställda tillåtna. Arkivera en anställd för att lägga till en ny.
+                  </FieldError>
+                )}
                 <Field>
                   <FieldLabel htmlFor="personalNumber">Personnummer *</FieldLabel>
                   <Input
@@ -249,6 +262,7 @@ export default function PersonalPage() {
                       id="firstName"
                       value={form.firstName}
                       onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                      placeholder="Förnamn"
                       required
                     />
                   </Field>
@@ -259,6 +273,7 @@ export default function PersonalPage() {
                       id="lastName"
                       value={form.lastName}
                       onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                      placeholder="Efternamn"
                       required
                     />
                   </Field>
@@ -272,6 +287,7 @@ export default function PersonalPage() {
                       type="email"
                       value={form.email}
                       onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      placeholder="exempel@email.com"
                     />
                   </Field>
 
@@ -281,6 +297,7 @@ export default function PersonalPage() {
                       id="phone"
                       value={form.phone}
                       onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      placeholder="070-123 45 67"
                     />
                   </Field>
                 </div>
@@ -291,6 +308,7 @@ export default function PersonalPage() {
                     id="address"
                     value={form.address}
                     onChange={(e) => setForm({ ...form, address: e.target.value })}
+                    placeholder="Gatunamn 123"
                   />
                 </Field>
 
@@ -301,6 +319,7 @@ export default function PersonalPage() {
                       id="postalCode"
                       value={form.postalCode}
                       onChange={(e) => setForm({ ...form, postalCode: e.target.value })}
+                      placeholder="123 45"
                     />
                   </Field>
 
@@ -310,6 +329,7 @@ export default function PersonalPage() {
                       id="city"
                       value={form.city}
                       onChange={(e) => setForm({ ...form, city: e.target.value })}
+                      placeholder="Stad"
                     />
                   </Field>
                 </div>
@@ -325,7 +345,7 @@ export default function PersonalPage() {
                 >
                   Avbryt
                 </Button>
-                <Button type="submit" disabled={createEmployee.isPending}>
+                <Button type="submit" disabled={createEmployee.isPending || isAtLimit}>
                   {createEmployee.isPending ? <Spinner /> : "Lägg till"}
                 </Button>
               </DialogFooter>

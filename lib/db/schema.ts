@@ -10,6 +10,7 @@ import {
   jsonb,
   unique,
 } from "drizzle-orm/pg-core";
+import { createCuid } from "@/lib/utils/cuid";
 
 // ============================================
 // Enums
@@ -118,7 +119,7 @@ export const verification = pgTable("verification", {
 // ============================================
 
 export const workspaces = pgTable("workspaces", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(), // 4 chars, a-z0-9
   mode: workspaceModeEnum("mode").default("simple").notNull(),
@@ -140,7 +141,7 @@ export const workspaces = pgTable("workspaces", {
 export const workspaceMembers = pgTable(
   "workspace_members",
   {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    id: text("id").primaryKey().$defaultFn(() => createCuid()),
     workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
@@ -153,7 +154,7 @@ export const workspaceMembers = pgTable(
 );
 
 export const workspaceInvites = pgTable("workspace_invites", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
   workspaceId: text("workspace_id")
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" }),
@@ -171,7 +172,7 @@ export const workspaceInvites = pgTable("workspace_invites", {
 export const fiscalPeriods = pgTable(
   "fiscal_periods",
   {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    id: text("id").primaryKey().$defaultFn(() => createCuid()),
     workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
@@ -187,7 +188,7 @@ export const fiscalPeriods = pgTable(
 );
 
 export const verifications = pgTable("verifications", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
   workspaceId: text("workspace_id")
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" }),
@@ -209,7 +210,7 @@ export const verifications = pgTable("verifications", {
 });
 
 export const attachments = pgTable("attachments", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
   verificationId: text("verification_id")
     .notNull()
     .references(() => verifications.id, { onDelete: "cascade" }),
@@ -224,7 +225,7 @@ export const attachments = pgTable("attachments", {
 });
 
 export const comments = pgTable("comments", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
   verificationId: text("verification_id")
     .notNull()
     .references(() => verifications.id, { onDelete: "cascade" }),
@@ -236,7 +237,7 @@ export const comments = pgTable("comments", {
 });
 
 export const auditLogs = pgTable("audit_logs", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
   workspaceId: text("workspace_id")
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" }),
@@ -258,7 +259,7 @@ export const auditLogs = pgTable("audit_logs", {
 export const bankAccounts = pgTable(
   "bank_accounts",
   {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    id: text("id").primaryKey().$defaultFn(() => createCuid()),
     workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
@@ -276,7 +277,7 @@ export const bankAccounts = pgTable(
 
 // Journal entries (multi-line verifications for full bookkeeping)
 export const journalEntries = pgTable("journal_entries", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
   workspaceId: text("workspace_id")
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" }),
@@ -298,7 +299,7 @@ export const journalEntries = pgTable("journal_entries", {
 
 // Journal entry lines (debit/credit rows)
 export const journalEntryLines = pgTable("journal_entry_lines", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
   journalEntryId: text("journal_entry_id")
     .notNull()
     .references(() => journalEntries.id, { onDelete: "cascade" }),
@@ -316,7 +317,7 @@ export const journalEntryLines = pgTable("journal_entry_lines", {
 export const employees = pgTable(
   "employees",
   {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    id: text("id").primaryKey().$defaultFn(() => createCuid()),
     workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
@@ -341,7 +342,7 @@ export const employees = pgTable(
 
 // Payroll runs (Lönekörningar)
 export const payrollRuns = pgTable("payroll_runs", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
   workspaceId: text("workspace_id")
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" }),
@@ -369,7 +370,7 @@ export const payrollRuns = pgTable("payroll_runs", {
 
 // Payroll entries (individual employee payments per run)
 export const payrollEntries = pgTable("payroll_entries", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
   payrollRunId: text("payroll_run_id")
     .notNull()
     .references(() => payrollRuns.id, { onDelete: "cascade" }),
@@ -393,7 +394,7 @@ export const payrollEntries = pgTable("payroll_entries", {
 export const lockedPeriods = pgTable(
   "locked_periods",
   {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    id: text("id").primaryKey().$defaultFn(() => createCuid()),
     workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
@@ -415,7 +416,7 @@ export const lockedPeriods = pgTable(
 // ============================================
 
 export const customers = pgTable("customers", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
   workspaceId: text("workspace_id")
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" }),
@@ -431,7 +432,7 @@ export const customers = pgTable("customers", {
 });
 
 export const invoices = pgTable("invoices", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
   workspaceId: text("workspace_id")
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" }),
@@ -453,7 +454,7 @@ export const invoices = pgTable("invoices", {
 });
 
 export const invoiceLines = pgTable("invoice_lines", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
   invoiceId: text("invoice_id")
     .notNull()
     .references(() => invoices.id, { onDelete: "cascade" }),

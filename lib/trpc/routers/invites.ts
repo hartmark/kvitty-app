@@ -9,6 +9,7 @@ import {
 } from "@/lib/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { sendInviteEmail } from "@/lib/email/send-invite";
+import { createCuid } from "@/lib/utils/cuid";
 
 export const invitesRouter = router({
   list: workspaceProcedure.query(async ({ ctx }) => {
@@ -80,7 +81,7 @@ export const invitesRouter = router({
         });
       }
 
-      const token = crypto.randomUUID();
+      const token = createCuid();
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
       const [invite] = await ctx.db

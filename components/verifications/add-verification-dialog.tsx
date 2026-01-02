@@ -27,6 +27,7 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { DatePicker } from "@/components/ui/date-picker";
 import { trpc } from "@/lib/trpc/client";
 import type { fiscalPeriods } from "@/lib/db/schema";
+import { createCuid } from "@/lib/utils/cuid";
 
 type FiscalPeriod = typeof fiscalPeriods.$inferSelect;
 
@@ -48,7 +49,7 @@ interface VerificationRow {
 
 function createEmptyRow(): VerificationRow {
   return {
-    id: crypto.randomUUID(),
+    id: createCuid(),
     account: "",
     accountingDate: "",
     reference: "",
@@ -89,7 +90,7 @@ export function AddVerificationDialog({
         return;
       }
       const parsed: VerificationRow[] = data.verifications.slice(0, 50).map((v) => ({
-        id: crypto.randomUUID(),
+        id: createCuid(),
         account: v.office || "",
         accountingDate: v.accountingDate || "",
         reference: v.reference || "",
