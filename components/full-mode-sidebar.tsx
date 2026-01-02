@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  House,
+  HouseIcon,
   Gear,
   Users,
   SignOut,
@@ -117,7 +117,7 @@ export function FullModeSidebar({
                   tooltip="Översikt"
                 >
                   <Link href={`/${workspace.slug}`}>
-                    <House className="size-4" weight="duotone" />
+                    <HouseIcon className="size-4" weight="duotone" />
                     <span>Översikt</span>
                   </Link>
                 </SidebarMenuButton>

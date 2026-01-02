@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { House, Gear, Users, SignOut, User } from "@phosphor-icons/react";
+import { HouseIcon, Gear, Users, SignOut, User } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -121,7 +121,7 @@ function SimpleSidebar({
                   tooltip="Översikt"
                 >
                   <Link href={`/${workspace.slug}`}>
-                    <House className="size-4" weight="duotone" />
+                    <HouseIcon className="size-4" weight="duotone" />
                     <span>Översikt</span>
                   </Link>
                 </SidebarMenuButton>

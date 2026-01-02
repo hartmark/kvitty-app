@@ -25,16 +25,29 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { AccountCombobox } from "@/components/journal-entry/account-combobox";
 import { trpc } from "@/lib/trpc/client";
 import { useWorkspace } from "@/components/workspace-provider";
+import { Badge } from "@/components/ui/badge";
 
 export default function BankPage() {
   const { workspace } = useWorkspace();
   const [addOpen, setAddOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [accountToDelete, setAccountToDelete] = useState<string | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<{
     number: number;
     name: string;
@@ -59,6 +72,8 @@ export default function BankPage() {
   const deleteAccount = trpc.bankAccounts.delete.useMutation({
     onSuccess: () => {
       utils.bankAccounts.list.invalidate();
+      setDeleteOpen(false);
+      setAccountToDelete(null);
     },
   });
 
@@ -174,20 +189,16 @@ export default function BankPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     {account.isDefault && (
-                      <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                      <Badge variant="blue">
                         Standard
-                      </span>
+                      </Badge>
                     )}
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => {
-                        if (confirm("Vill du ta bort detta konto?")) {
-                          deleteAccount.mutate({
-                            id: account.id,
-                            workspaceId: workspace.id,
-                          });
-                        }
+                        setAccountToDelete(account.id);
+                        setDeleteOpen(true);
                       }}
                       disabled={deleteAccount.isPending}
                       className="text-muted-foreground hover:text-destructive"
@@ -254,6 +265,35 @@ export default function BankPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Account Alert Dialog */}
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Ta bort bankkonto</AlertDialogTitle>
+              <AlertDialogDescription>
+                Vill du ta bort detta konto? Denna åtgärd kan inte ångras.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Avbryt</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                onClick={() => {
+                  if (accountToDelete) {
+                    deleteAccount.mutate({
+                      id: accountToDelete,
+                      workspaceId: workspace.id,
+                    });
+                  }
+                }}
+                disabled={deleteAccount.isPending}
+              >
+                {deleteAccount.isPending ? <Spinner /> : "Ta bort"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </>
   );

@@ -7,6 +7,8 @@ import { WorkspaceProvider } from "@/components/workspace-provider";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset } from "@/components/ui/sidebar";
 import { SetUserCookie } from "@/components/set-user-cookie";
+import { FirstPeriodDialog } from "@/components/periods/first-period-dialog";
+import { CommandMenu } from "@/components/command-menu";
 
 export default async function WorkspaceLayout({
   children,
@@ -61,6 +63,8 @@ export default async function WorkspaceLayout({
   return (
     <WorkspaceProvider workspace={workspace} periods={periods}>
       <SetUserCookie slug={workspace.slug} name={workspace.name} />
+      <FirstPeriodDialog />
+      <CommandMenu />
       <AppSidebar
         workspace={workspace}
         workspaces={userWorkspaces}
