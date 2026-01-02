@@ -1,29 +1,23 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
 
 // Routes that require authentication
 const protectedRoutes = ["/dash"];
 
-// Routes that should redirect to dashboard if already authenticated
-const authRoutes = ["/login", "/signup", "/otp", "/magic-link-sent"];
-
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check for session token (better-auth uses this cookie name)
-  const sessionToken =
-    request.cookies.get("better-auth.session_token")?.value ||
-    request.cookies.get("__Secure-better-auth.session_token")?.value;
-
-  const isAuthenticated = !!sessionToken;
-
-  // Redirect authenticated users away from auth pages
-  if (isAuthenticated && authRoutes.some((route) => pathname.startsWith(route))) {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
+  // Validate session properly using Better Auth API
+  // This validates the session against the database, not just cookie existence
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
   // Redirect unauthenticated users to login from protected routes
-  if (!isAuthenticated && protectedRoutes.some((route) => pathname.startsWith(route))) {
+  // Note: Auth route redirects are handled by (auth)/layout.tsx which validates sessions properly
+  if (!session && protectedRoutes.some((route) => pathname.startsWith(route))) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);

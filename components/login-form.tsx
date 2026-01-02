@@ -33,7 +33,7 @@ export function LoginForm({
     try {
       const { error: signInError } = await signIn.magicLink({
         email,
-        callbackURL: "/",
+        callbackURL: "/app",
       });
 
       if (signInError) {

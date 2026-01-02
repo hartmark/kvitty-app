@@ -22,7 +22,7 @@ export default async function AppPage() {
     redirect(`/${memberships[0].workspace.slug}`);
   }
 
-  redirect("/");
+  redirect("/new-workspace");
 }
 
 

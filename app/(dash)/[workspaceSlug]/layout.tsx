@@ -39,7 +39,7 @@ export default async function WorkspaceLayout({
   });
 
   if (!membership) {
-    notFound();
+    redirect("/app");
   }
 
   // Get all periods for this workspace

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Receipt, Files, Calculator } from "@phosphor-icons/react";
+import { Receipt, Files, Calculator, CaretDownIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -14,12 +14,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc/client";
 import { WorkspaceModeSelector } from "./workspace-mode-selector";
@@ -89,6 +89,7 @@ export function CreateWorkspaceForm() {
   const [orgNumber, setOrgNumber] = useState("");
   const [orgName, setOrgName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const createWorkspace = trpc.workspaces.create.useMutation({
     onSuccess: (workspace) => {
@@ -197,7 +198,7 @@ export function CreateWorkspaceForm() {
                 <Input
                   id="orgNumber"
                   type="text"
-                  placeholder="XXXXXXXXXX"
+                  placeholder="XXXXXX-XXXX"
                   value={orgNumber}
                   onChange={(e) => setOrgNumber(e.target.value.replace(/\D/g, ""))}
                   disabled={createWorkspace.isPending}
@@ -236,22 +237,34 @@ export function CreateWorkspaceForm() {
 
                 <Field>
                   <FieldLabel htmlFor="businessType">Företagsform</FieldLabel>
-                  <Select
-                    value={businessType}
-                    onValueChange={(v) => setBusinessType(v as BusinessType)}
-                    disabled={createWorkspace.isPending}
-                  >
-                    <SelectTrigger id="businessType">
-                      <SelectValue placeholder="Välj företagsform" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(businessTypeLabels).map(([value, label]) => (
-                        <SelectItem key={value} value={value}>
-                          {label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        id="businessType"
+                        variant="outline"
+                        className="w-full justify-between"
+                        disabled={createWorkspace.isPending}
+                      >
+                        <span>{businessType ? businessTypeLabels[businessType] : "Välj företagsform"}</span>
+                        <CaretDownIcon className="size-4 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width)">
+                      <DropdownMenuRadioGroup
+                        value={businessType}
+                        onValueChange={(v) => {
+                          setBusinessType(v as BusinessType);
+                          setDropdownOpen(false);
+                        }}
+                      >
+                        {Object.entries(businessTypeLabels).map(([value, label]) => (
+                          <DropdownMenuRadioItem key={value} value={value}>
+                            {label}
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </Field>
               </>
             )}
