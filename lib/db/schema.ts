@@ -59,6 +59,12 @@ export const invoiceStatusEnum = pgEnum("invoice_status", [
   "paid",
 ]);
 
+export const invoiceSentMethodEnum = pgEnum("invoice_sent_method", [
+  "email_pdf",
+  "email_link",
+  "manual",
+]);
+
 export const productUnitEnum = pgEnum("product_unit", [
   "styck",
   "timmar",
@@ -216,7 +222,7 @@ export const fiscalPeriods = pgTable(
   (table) => [unique().on(table.workspaceId, table.urlSlug)]
 );
 
-export const verifications = pgTable("verifications", {
+export const bankTransactions = pgTable("bank_transactions", {
   id: text("id").primaryKey().$defaultFn(() => createCuid()),
   workspaceId: text("workspace_id")
     .notNull()
@@ -224,6 +230,7 @@ export const verifications = pgTable("verifications", {
   fiscalPeriodId: text("fiscal_period_id")
     .notNull()
     .references(() => fiscalPeriods.id, { onDelete: "cascade" }),
+  bankAccountId: text("bank_account_id").references(() => bankAccounts.id, { onDelete: "set null" }),
   office: text("office"), // Kontor
   accountingDate: date("accounting_date"), // Bokföringsdag
   ledgerDate: date("ledger_date"), // Reskontradag
@@ -231,6 +238,8 @@ export const verifications = pgTable("verifications", {
   reference: text("reference"), // Referens
   amount: decimal("amount", { precision: 15, scale: 2 }), // Insättning/Uttag
   bookedBalance: decimal("booked_balance", { precision: 15, scale: 2 }), // Bokfört saldo
+  importedAt: timestamp("imported_at"), // When transaction was imported
+  mappedToJournalEntryId: text("mapped_to_journal_entry_id").references(() => journalEntries.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   createdBy: text("created_by")
@@ -240,9 +249,9 @@ export const verifications = pgTable("verifications", {
 
 export const attachments = pgTable("attachments", {
   id: text("id").primaryKey().$defaultFn(() => createCuid()),
-  verificationId: text("verification_id")
+  bankTransactionId: text("bank_transaction_id")
     .notNull()
-    .references(() => verifications.id, { onDelete: "cascade" }),
+    .references(() => bankTransactions.id, { onDelete: "cascade" }),
   fileName: text("file_name").notNull(),
   fileUrl: text("file_url").notNull(), // Vercel Blob URL
   fileSize: integer("file_size"),
@@ -255,9 +264,9 @@ export const attachments = pgTable("attachments", {
 
 export const comments = pgTable("comments", {
   id: text("id").primaryKey().$defaultFn(() => createCuid()),
-  verificationId: text("verification_id")
+  bankTransactionId: text("bank_transaction_id")
     .notNull()
-    .references(() => verifications.id, { onDelete: "cascade" }),
+    .references(() => bankTransactions.id, { onDelete: "cascade" }),
   content: text("content").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   createdBy: text("created_by")
@@ -406,6 +415,9 @@ export const payrollRuns = pgTable("payroll_runs", {
     .references(() => journalEntries.id), // Links to generated verification
   agiXml: text("agi_xml"), // Generated AGI XML content
   agiSubmittedAt: timestamp("agi_submitted_at"),
+  agiDeadline: date("agi_deadline"), // Calculated deadline (12th of month after salary period)
+  agiConfirmedAt: timestamp("agi_confirmed_at"), // When user confirmed AGI was reported
+  agiConfirmedBy: text("agi_confirmed_by").references(() => user.id), // User ID who confirmed
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   createdBy: text("created_by")
@@ -514,6 +526,11 @@ export const invoices = pgTable("invoices", {
   total: decimal("total", { precision: 15, scale: 2 }).notNull(),
   status: invoiceStatusEnum("status").default("draft").notNull(),
   sentAt: timestamp("sent_at"), // When invoice was marked as sent
+  sentMethod: invoiceSentMethodEnum("sent_method"), // How invoice was sent
+  shareToken: text("share_token").unique(), // Token for public link access
+  openedAt: timestamp("opened_at"), // When invoice link was first opened
+  openedCount: integer("opened_count").default(0).notNull(), // Number of times opened
+  lastOpenedAt: timestamp("last_opened_at"), // Last open timestamp
   paidDate: text("paid_date"),
   paidAmount: decimal("paid_amount", { precision: 15, scale: 2 }), // Actual amount paid (for overpayment tracking)
   sentJournalEntryId: text("sent_journal_entry_id").references(() => journalEntries.id), // Link to verification when sent (revenue recognition)
@@ -539,6 +556,17 @@ export const invoiceLines = pgTable("invoice_lines", {
   sortOrder: integer("sort_order").default(0),
 });
 
+export const invoiceOpenLogs = pgTable("invoice_open_logs", {
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
+  invoiceId: text("invoice_id")
+    .notNull()
+    .references(() => invoices.id, { onDelete: "cascade" }),
+  openedAt: timestamp("opened_at").defaultNow().notNull(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  referer: text("referer"),
+});
+
 // ============================================
 // Relations
 // ============================================
@@ -548,7 +576,7 @@ export const userRelations = relations(user, ({ many }) => ({
   accounts: many(account),
   workspaceMembers: many(workspaceMembers),
   createdWorkspaces: many(workspaces),
-  verifications: many(verifications),
+  bankTransactions: many(bankTransactions),
   attachments: many(attachments),
   comments: many(comments),
   auditLogs: many(auditLogs),
@@ -579,7 +607,7 @@ export const workspacesRelations = relations(workspaces, ({ one, many }) => ({
   members: many(workspaceMembers),
   invites: many(workspaceInvites),
   fiscalPeriods: many(fiscalPeriods),
-  verifications: many(verifications),
+  bankTransactions: many(bankTransactions),
   auditLogs: many(auditLogs),
   // Full bookkeeping relations
   bankAccounts: many(bankAccounts),
@@ -631,26 +659,34 @@ export const fiscalPeriodsRelations = relations(
       fields: [fiscalPeriods.workspaceId],
       references: [workspaces.id],
     }),
-    verifications: many(verifications),
+    bankTransactions: many(bankTransactions),
     journalEntries: many(journalEntries),
     payrollRuns: many(payrollRuns),
     lockedPeriods: many(lockedPeriods),
   })
 );
 
-export const verificationsRelations = relations(
-  verifications,
+export const bankTransactionsRelations = relations(
+  bankTransactions,
   ({ one, many }) => ({
     workspace: one(workspaces, {
-      fields: [verifications.workspaceId],
+      fields: [bankTransactions.workspaceId],
       references: [workspaces.id],
     }),
     fiscalPeriod: one(fiscalPeriods, {
-      fields: [verifications.fiscalPeriodId],
+      fields: [bankTransactions.fiscalPeriodId],
       references: [fiscalPeriods.id],
     }),
+    bankAccount: one(bankAccounts, {
+      fields: [bankTransactions.bankAccountId],
+      references: [bankAccounts.id],
+    }),
+    mappedToJournalEntry: one(journalEntries, {
+      fields: [bankTransactions.mappedToJournalEntryId],
+      references: [journalEntries.id],
+    }),
     createdByUser: one(user, {
-      fields: [verifications.createdBy],
+      fields: [bankTransactions.createdBy],
       references: [user.id],
     }),
     attachments: many(attachments),
@@ -659,9 +695,9 @@ export const verificationsRelations = relations(
 );
 
 export const attachmentsRelations = relations(attachments, ({ one }) => ({
-  verification: one(verifications, {
-    fields: [attachments.verificationId],
-    references: [verifications.id],
+  bankTransaction: one(bankTransactions, {
+    fields: [attachments.bankTransactionId],
+    references: [bankTransactions.id],
   }),
   createdByUser: one(user, {
     fields: [attachments.createdBy],
@@ -670,9 +706,9 @@ export const attachmentsRelations = relations(attachments, ({ one }) => ({
 }));
 
 export const commentsRelations = relations(comments, ({ one }) => ({
-  verification: one(verifications, {
-    fields: [comments.verificationId],
-    references: [verifications.id],
+  bankTransaction: one(bankTransactions, {
+    fields: [comments.bankTransactionId],
+    references: [bankTransactions.id],
   }),
   createdByUser: one(user, {
     fields: [comments.createdBy],
@@ -695,11 +731,12 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
 // Full Bookkeeping Relations
 // ============================================
 
-export const bankAccountsRelations = relations(bankAccounts, ({ one }) => ({
+export const bankAccountsRelations = relations(bankAccounts, ({ one, many }) => ({
   workspace: one(workspaces, {
     fields: [bankAccounts.workspaceId],
     references: [workspaces.id],
   }),
+  bankTransactions: many(bankTransactions),
 }));
 
 export const journalEntriesRelations = relations(
@@ -719,6 +756,7 @@ export const journalEntriesRelations = relations(
       references: [user.id],
     }),
     lines: many(journalEntryLines),
+    mappedBankTransactions: many(bankTransactions),
   })
 );
 
@@ -767,6 +805,10 @@ export const payrollRunsRelations = relations(
     }),
     createdByUser: one(user, {
       fields: [payrollRuns.createdBy],
+      references: [user.id],
+    }),
+    agiConfirmedByUser: one(user, {
+      fields: [payrollRuns.agiConfirmedBy],
       references: [user.id],
     }),
     journalEntry: one(journalEntries, {
@@ -841,6 +883,7 @@ export const invoicesRelations = relations(invoices, ({ one, many }) => ({
     references: [journalEntries.id],
   }),
   lines: many(invoiceLines),
+  openLogs: many(invoiceOpenLogs),
 }));
 
 export const invoiceLinesRelations = relations(invoiceLines, ({ one }) => ({
@@ -851,6 +894,13 @@ export const invoiceLinesRelations = relations(invoiceLines, ({ one }) => ({
   product: one(products, {
     fields: [invoiceLines.productId],
     references: [products.id],
+  }),
+}));
+
+export const invoiceOpenLogsRelations = relations(invoiceOpenLogs, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [invoiceOpenLogs.invoiceId],
+    references: [invoices.id],
   }),
 }));
 
@@ -903,3 +953,11 @@ export type InvoiceStatus = (typeof invoiceStatusEnum.enumValues)[number];
 export type InvoiceLine = typeof invoiceLines.$inferSelect;
 export type NewInvoiceLine = typeof invoiceLines.$inferInsert;
 export type InvoiceLineType = (typeof invoiceLineTypeEnum.enumValues)[number];
+
+export type BankTransaction = typeof bankTransactions.$inferSelect;
+export type NewBankTransaction = typeof bankTransactions.$inferInsert;
+
+export type InvoiceOpenLog = typeof invoiceOpenLogs.$inferSelect;
+export type NewInvoiceOpenLog = typeof invoiceOpenLogs.$inferInsert;
+
+export type InvoiceSentMethod = (typeof invoiceSentMethodEnum.enumValues)[number];

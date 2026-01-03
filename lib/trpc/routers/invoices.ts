@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { router, workspaceProcedure } from "../init";
+import { router, workspaceProcedure, publicProcedure } from "../init";
 import {
   invoices,
   invoiceLines,
@@ -19,6 +19,9 @@ import {
   updateLineOrderSchema,
   updateInvoiceMetadataSchema,
 } from "@/lib/validations/invoice";
+import { sendInvoiceEmailWithPdf, sendInvoiceEmailWithLink } from "@/lib/email/send-invoice";
+import { createCuid } from "@/lib/utils/cuid";
+import { workspaces, invoiceOpenLogs } from "@/lib/db/schema";
 
 // Helper to recalculate invoice totals
 async function recalculateInvoiceTotals(
@@ -1198,5 +1201,328 @@ export const invoicesRouter = router({
         .returning();
 
       return updated;
+    }),
+
+  sendInvoice: workspaceProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        sendMethod: z.enum(["pdf", "link"]),
+        email: z.string().email(),
+        subject: z.string().optional(),
+        message: z.string().optional(),
+        createVerification: z.boolean().default(false),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.query.invoices.findFirst({
+        where: and(
+          eq(invoices.id, input.id),
+          eq(invoices.workspaceId, ctx.workspaceId)
+        ),
+        with: {
+          customer: true,
+          lines: true,
+        },
+      });
+
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      if (existing.status !== "draft") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Fakturan är redan skickad",
+        });
+      }
+
+      const workspace = await ctx.db.query.workspaces.findFirst({
+        where: eq(workspaces.id, ctx.workspaceId),
+      });
+
+      if (!workspace) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      let shareToken: string | null = null;
+      if (input.sendMethod === "link") {
+        shareToken = createCuid();
+      }
+
+      let sentJournalEntryId: string | null = null;
+
+      if (input.createVerification) {
+        const period = await ctx.db.query.fiscalPeriods.findFirst({
+          where: and(
+            eq(fiscalPeriods.workspaceId, ctx.workspaceId),
+            lte(fiscalPeriods.startDate, existing.invoiceDate),
+            gte(fiscalPeriods.endDate, existing.invoiceDate)
+          ),
+        });
+
+        if (period) {
+          const breakdown = calculateInvoiceBreakdown(existing.lines);
+
+          if (breakdown.totalInclVat > 0) {
+            const maxVerifResult = await ctx.db
+              .select({
+                maxNum: sql<number>`COALESCE(MAX(${journalEntries.verificationNumber}), 0)`,
+              })
+              .from(journalEntries)
+              .where(eq(journalEntries.fiscalPeriodId, period.id));
+
+            const nextVerifNumber = (maxVerifResult[0]?.maxNum || 0) + 1;
+
+            const [entry] = await ctx.db
+              .insert(journalEntries)
+              .values({
+                workspaceId: ctx.workspaceId,
+                fiscalPeriodId: period.id,
+                verificationNumber: nextVerifNumber,
+                entryDate: existing.invoiceDate,
+                description: `Faktura #${existing.invoiceNumber} - ${existing.customer.name}`,
+                entryType: "inkomst",
+                sourceType: "invoice_sent",
+                createdBy: ctx.session!.session.userId,
+              })
+              .returning();
+
+            sentJournalEntryId = entry.id;
+
+            const entryLines: Array<{
+              journalEntryId: string;
+              accountNumber: number;
+              accountName: string;
+              debit: string | null;
+              credit: string | null;
+              description: string;
+              sortOrder: number;
+            }> = [];
+
+            let sortOrder = 0;
+
+            entryLines.push({
+              journalEntryId: entry.id,
+              accountNumber: 1510,
+              accountName: "Kundfordringar",
+              debit: breakdown.totalInclVat.toFixed(2),
+              credit: null,
+              description: `Faktura #${existing.invoiceNumber}`,
+              sortOrder: sortOrder++,
+            });
+
+            if (breakdown.serviceAmount > 0) {
+              entryLines.push({
+                journalEntryId: entry.id,
+                accountNumber: 3010,
+                accountName: "Försäljning tjänster",
+                debit: null,
+                credit: breakdown.serviceAmount.toFixed(2),
+                description: "Tjänster",
+                sortOrder: sortOrder++,
+              });
+            }
+
+            if (breakdown.goodsAmount > 0) {
+              entryLines.push({
+                journalEntryId: entry.id,
+                accountNumber: 3040,
+                accountName: "Försäljning varor",
+                debit: null,
+                credit: breakdown.goodsAmount.toFixed(2),
+                description: "Varor",
+                sortOrder: sortOrder++,
+              });
+            }
+
+            if (breakdown.vat25 > 0) {
+              entryLines.push({
+                journalEntryId: entry.id,
+                accountNumber: 2610,
+                accountName: "Utgående moms 25%",
+                debit: null,
+                credit: breakdown.vat25.toFixed(2),
+                description: "Moms 25%",
+                sortOrder: sortOrder++,
+              });
+            }
+
+            if (breakdown.vat12 > 0) {
+              entryLines.push({
+                journalEntryId: entry.id,
+                accountNumber: 2620,
+                accountName: "Utgående moms 12%",
+                debit: null,
+                credit: breakdown.vat12.toFixed(2),
+                description: "Moms 12%",
+                sortOrder: sortOrder++,
+              });
+            }
+
+            if (breakdown.vat6 > 0) {
+              entryLines.push({
+                journalEntryId: entry.id,
+                accountNumber: 2630,
+                accountName: "Utgående moms 6%",
+                debit: null,
+                credit: breakdown.vat6.toFixed(2),
+                description: "Moms 6%",
+                sortOrder: sortOrder++,
+              });
+            }
+
+            await ctx.db.insert(journalEntryLines).values(entryLines);
+          }
+        }
+      }
+
+      const invoiceUrl = input.sendMethod === "link" && shareToken
+        ? `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/faktura/${existing.id}?token=${shareToken}`
+        : undefined;
+
+      try {
+        if (input.sendMethod === "pdf") {
+          await sendInvoiceEmailWithPdf({
+            to: input.email,
+            invoice: existing,
+            customer: existing.customer,
+            workspace,
+            invoiceLines: existing.lines.map((line) => ({
+              description: line.description,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              vatRate: line.vatRate,
+              amount: line.amount,
+            })),
+          });
+        } else {
+          await sendInvoiceEmailWithLink({
+            to: input.email,
+            invoice: existing,
+            customer: existing.customer,
+            workspace,
+            invoiceLines: existing.lines.map((line) => ({
+              description: line.description,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              vatRate: line.vatRate,
+              amount: line.amount,
+            })),
+            invoiceUrl,
+          });
+        }
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: error instanceof Error ? error.message : "Kunde inte skicka e-post",
+        });
+      }
+
+      const [updated] = await ctx.db
+        .update(invoices)
+        .set({
+          status: "sent",
+          sentAt: new Date(),
+          sentMethod: input.sendMethod === "pdf" ? "email_pdf" : "email_link",
+          shareToken,
+          sentJournalEntryId,
+          updatedAt: new Date(),
+        })
+        .where(eq(invoices.id, input.id))
+        .returning();
+
+      return updated;
+    }),
+
+  getByToken: publicProcedure
+    .input(
+      z.object({
+        invoiceId: z.string(),
+        token: z.string(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const invoice = await ctx.db.query.invoices.findFirst({
+        where: and(
+          eq(invoices.id, input.invoiceId),
+          eq(invoices.shareToken, input.token)
+        ),
+        with: {
+          customer: true,
+          lines: {
+            orderBy: (l, { asc }) => [asc(l.sortOrder)],
+            with: {
+              product: true,
+            },
+          },
+          workspace: {
+            columns: {
+              id: true,
+              name: true,
+              orgName: true,
+              orgNumber: true,
+              address: true,
+              postalCode: true,
+              city: true,
+              contactEmail: true,
+              contactPhone: true,
+            },
+          },
+        },
+      });
+
+      if (!invoice) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      return invoice;
+    }),
+
+  trackOpen: publicProcedure
+    .input(
+      z.object({
+        invoiceId: z.string(),
+        token: z.string(),
+        ipAddress: z.string().optional(),
+        userAgent: z.string().optional(),
+        referer: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const invoice = await ctx.db.query.invoices.findFirst({
+        where: and(
+          eq(invoices.id, input.invoiceId),
+          eq(invoices.shareToken, input.token)
+        ),
+      });
+
+      if (!invoice) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      const now = new Date();
+      const isFirstOpen = !invoice.openedAt;
+
+      // Insert log entry first
+      await ctx.db.insert(invoiceOpenLogs).values({
+        invoiceId: input.invoiceId,
+        ipAddress: input.ipAddress || null,
+        userAgent: input.userAgent || null,
+        referer: input.referer || null,
+      });
+
+      // Update invoice counters atomically to avoid race conditions
+      await ctx.db
+        .update(invoices)
+        .set({
+          openedAt: isFirstOpen ? now : invoice.openedAt,
+          openedCount: sql`${invoices.openedCount} + 1`, // Use SQL increment to avoid race conditions
+          lastOpenedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(invoices.id, input.invoiceId));
+
+      return { success: true };
     }),
 });

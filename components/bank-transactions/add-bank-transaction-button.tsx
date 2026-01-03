@@ -3,17 +3,17 @@
 import { useState } from "react";
 import { Plus } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
-import { AddVerificationDialog } from "./add-verification-dialog";
+import { AddBankTransactionDialog } from "./add-bank-transaction-dialog";
 
-interface AddVerificationButtonProps {
+interface AddBankTransactionButtonProps {
   workspaceId: string;
   periodId: string;
 }
 
-export function AddVerificationButton({
+export function AddBankTransactionButton({
   workspaceId,
   periodId,
-}: AddVerificationButtonProps) {
+}: AddBankTransactionButtonProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -22,7 +22,7 @@ export function AddVerificationButton({
         <Plus className="size-4 mr-2" />
         Lägg till
       </Button>
-      <AddVerificationDialog
+      <AddBankTransactionDialog
         workspaceId={workspaceId}
         periodId={periodId}
         open={open}
@@ -31,3 +31,4 @@ export function AddVerificationButton({
     </>
   );
 }
+

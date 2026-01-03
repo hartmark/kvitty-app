@@ -16,68 +16,68 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
 import { trpc } from "@/lib/trpc/client";
-import type { verifications } from "@/lib/db/schema";
+import type { bankTransactions } from "@/lib/db/schema";
 
-type Verification = typeof verifications.$inferSelect;
+type BankTransaction = typeof bankTransactions.$inferSelect;
 
-interface VerificationDetailSheetProps {
-  verification: Verification | null;
+interface BankTransactionDetailSheetProps {
+  transaction: BankTransaction | null;
   workspaceId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function VerificationDetailSheet({
-  verification,
+export function BankTransactionDetailSheet({
+  transaction,
   workspaceId,
   open,
   onOpenChange,
-}: VerificationDetailSheetProps) {
+}: BankTransactionDetailSheetProps) {
   const router = useRouter();
   const utils = trpc.useUtils();
   const [comment, setComment] = useState("");
 
-  const { data: details } = trpc.verifications.get.useQuery(
-    { workspaceId, verificationId: verification?.id ?? "" },
-    { enabled: !!verification }
+  const { data: details } = trpc.bankTransactions.get.useQuery(
+    { workspaceId, bankTransactionId: transaction?.id ?? "" },
+    { enabled: !!transaction }
   );
 
   const addComment = trpc.comments.create.useMutation({
     onSuccess: () => {
       setComment("");
-      utils.verifications.get.invalidate({
+      utils.bankTransactions.get.invalidate({
         workspaceId,
-        verificationId: verification?.id,
+        bankTransactionId: transaction?.id,
       });
     },
   });
 
   const deleteComment = trpc.comments.delete.useMutation({
     onSuccess: () => {
-      utils.verifications.get.invalidate({
+      utils.bankTransactions.get.invalidate({
         workspaceId,
-        verificationId: verification?.id,
+        bankTransactionId: transaction?.id,
       });
     },
   });
 
   const deleteAttachment = trpc.attachments.delete.useMutation({
     onSuccess: () => {
-      utils.verifications.get.invalidate({
+      utils.bankTransactions.get.invalidate({
         workspaceId,
-        verificationId: verification?.id,
+        bankTransactionId: transaction?.id,
       });
     },
   });
 
-  const deleteVerification = trpc.verifications.delete.useMutation({
+  const deleteTransaction = trpc.bankTransactions.delete.useMutation({
     onSuccess: () => {
       onOpenChange(false);
       router.refresh();
     },
   });
 
-  if (!verification) return null;
+  if (!transaction) return null;
 
   const formatCurrency = (value: string | null) => {
     if (!value) return "—";
@@ -89,7 +89,7 @@ export function VerificationDetailSheet({
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file || !verification) return;
+    if (!file || !transaction) return;
 
     const formData = new FormData();
     formData.append("file", file);
@@ -107,19 +107,18 @@ export function VerificationDetailSheet({
 
       const { url } = await res.json();
 
-      // Add attachment record via tRPC
       await utils.client.attachments.create.mutate({
         workspaceId,
-        verificationId: verification.id,
+        bankTransactionId: transaction.id,
         fileName: file.name,
         fileUrl: url,
         fileSize: file.size,
         mimeType: file.type,
       });
 
-      utils.verifications.get.invalidate({
+      utils.bankTransactions.get.invalidate({
         workspaceId,
-        verificationId: verification.id,
+        bankTransactionId: transaction.id,
       });
     } catch (error) {
       console.error("Upload failed:", error);
@@ -130,39 +129,38 @@ export function VerificationDetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[500px] sm:max-w-[500px]">
         <SheetHeader>
-          <SheetTitle>{verification.reference || "Verifikation"}</SheetTitle>
+          <SheetTitle>{transaction.reference || "Banktransaktion"}</SheetTitle>
           <SheetDescription>
-            {verification.accountingDate || "Inget datum"}
+            {transaction.accountingDate || "Inget datum"}
           </SheetDescription>
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
-          {/* Details */}
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <p className="text-muted-foreground">Kontor</p>
-              <p className="font-medium">{verification.office || "—"}</p>
+              <p className="font-medium">{transaction.office || "—"}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Bokföringsdag</p>
-              <p className="font-medium">{verification.accountingDate || "—"}</p>
+              <p className="font-medium">{transaction.accountingDate || "—"}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Reskontradag</p>
-              <p className="font-medium">{verification.ledgerDate || "—"}</p>
+              <p className="font-medium">{transaction.ledgerDate || "—"}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Valutadag</p>
-              <p className="font-medium">{verification.currencyDate || "—"}</p>
+              <p className="font-medium">{transaction.currencyDate || "—"}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Belopp</p>
-              <p className="font-medium">{formatCurrency(verification.amount)}</p>
+              <p className="font-medium">{formatCurrency(transaction.amount)}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Bokfört saldo</p>
               <p className="font-medium">
-                {formatCurrency(verification.bookedBalance)}
+                {formatCurrency(transaction.bookedBalance)}
               </p>
             </div>
           </div>
@@ -218,7 +216,7 @@ export function VerificationDetailSheet({
                       onClick={() =>
                         deleteAttachment.mutate({
                           workspaceId,
-                          verificationId: verification.id,
+                          bankTransactionId: transaction.id,
                           attachmentId: attachment.id,
                         })
                       }
@@ -249,7 +247,7 @@ export function VerificationDetailSheet({
                 onClick={() =>
                   addComment.mutate({
                     workspaceId,
-                    verificationId: verification.id,
+                    bankTransactionId: transaction.id,
                     content: comment,
                   })
                 }
@@ -279,7 +277,7 @@ export function VerificationDetailSheet({
                           onClick={() =>
                             deleteComment.mutate({
                               workspaceId,
-                              verificationId: verification.id,
+                              bankTransactionId: transaction.id,
                               commentId: c.id,
                             })
                           }
@@ -308,19 +306,19 @@ export function VerificationDetailSheet({
               variant="destructive"
               size="sm"
               onClick={() =>
-                deleteVerification.mutate({
+                deleteTransaction.mutate({
                   workspaceId,
-                  verificationId: verification.id,
+                  bankTransactionId: transaction.id,
                 })
               }
-              disabled={deleteVerification.isPending}
+              disabled={deleteTransaction.isPending}
             >
-              {deleteVerification.isPending ? (
+              {deleteTransaction.isPending ? (
                 <Spinner />
               ) : (
                 <>
                   <Trash className="size-4 mr-2" />
-                  Ta bort verifikation
+                  Ta bort transaktion
                 </>
               )}
             </Button>
@@ -330,3 +328,4 @@ export function VerificationDetailSheet({
     </Sheet>
   );
 }
+

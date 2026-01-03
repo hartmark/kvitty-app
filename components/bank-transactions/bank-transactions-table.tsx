@@ -16,26 +16,26 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { createColumns, type Verification } from "./verification-columns";
-import { VerificationDetailSheet } from "./verification-detail-sheet";
+import { createColumns, type BankTransaction } from "./bank-transaction-columns";
+import { BankTransactionDetailSheet } from "./bank-transaction-detail-sheet";
 
-interface VerificationsTableProps {
-  data: Verification[];
+interface BankTransactionsTableProps {
+  data: BankTransaction[];
   workspaceId: string;
   hasFilters: boolean;
 }
 
-export function VerificationsTable({
+export function BankTransactionsTable({
   data,
   workspaceId,
   hasFilters,
-}: VerificationsTableProps) {
+}: BankTransactionsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [selectedVerification, setSelectedVerification] =
-    useState<Verification | null>(null);
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<BankTransaction | null>(null);
 
   const columns = useMemo(
-    () => createColumns(setSelectedVerification),
+    () => createColumns(setSelectedTransaction),
     []
   );
 
@@ -75,7 +75,7 @@ export function VerificationsTable({
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  onClick={() => setSelectedVerification(row.original)}
+                  onClick={() => setSelectedTransaction(row.original)}
                   className="cursor-pointer"
                   data-state={row.getIsSelected() && "selected"}
                 >
@@ -90,8 +90,8 @@ export function VerificationsTable({
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
                   {hasFilters
-                    ? "Inga verifikationer matchar din sökning."
-                    : "Inga verifikationer hittades."}
+                    ? "Inga transaktioner matchar din sökning."
+                    : "Inga transaktioner hittades."}
                 </TableCell>
               </TableRow>
             )}
@@ -99,12 +99,13 @@ export function VerificationsTable({
         </Table>
       </div>
 
-      <VerificationDetailSheet
-        verification={selectedVerification}
+      <BankTransactionDetailSheet
+        transaction={selectedTransaction}
         workspaceId={workspaceId}
-        open={!!selectedVerification}
-        onOpenChange={(open) => !open && setSelectedVerification(null)}
+        open={!!selectedTransaction}
+        onOpenChange={(open) => !open && setSelectedTransaction(null)}
       />
     </>
   );
 }
+

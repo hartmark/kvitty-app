@@ -1,28 +1,28 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, workspaceProcedure } from "../init";
-import { attachments, verifications, auditLogs } from "@/lib/db/schema";
+import { attachments, bankTransactions, auditLogs } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { put, del } from "@vercel/blob";
 
 export const attachmentsRouter = router({
   list: workspaceProcedure
-    .input(z.object({ workspaceId: z.string(), verificationId: z.string() }))
+    .input(z.object({ workspaceId: z.string(), bankTransactionId: z.string() }))
     .query(async ({ ctx, input }) => {
-      // Verify verification belongs to workspace
-      const verification = await ctx.db.query.verifications.findFirst({
+      // Verify bank transaction belongs to workspace
+      const transaction = await ctx.db.query.bankTransactions.findFirst({
         where: and(
-          eq(verifications.id, input.verificationId),
-          eq(verifications.workspaceId, ctx.workspaceId)
+          eq(bankTransactions.id, input.bankTransactionId),
+          eq(bankTransactions.workspaceId, ctx.workspaceId)
         ),
       });
 
-      if (!verification) {
+      if (!transaction) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
 
       const items = await ctx.db.query.attachments.findMany({
-        where: eq(attachments.verificationId, input.verificationId),
+        where: eq(attachments.bankTransactionId, input.bankTransactionId),
         orderBy: (a, { desc }) => [desc(a.createdAt)],
         with: {
           createdByUser: {
@@ -38,7 +38,7 @@ export const attachmentsRouter = router({
     .input(
       z.object({
         workspaceId: z.string(),
-        verificationId: z.string(),
+        bankTransactionId: z.string(),
         fileName: z.string(),
         fileUrl: z.string(),
         fileSize: z.number().optional(),
@@ -46,22 +46,22 @@ export const attachmentsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // Verify verification belongs to workspace
-      const verification = await ctx.db.query.verifications.findFirst({
+      // Verify bank transaction belongs to workspace
+      const transaction = await ctx.db.query.bankTransactions.findFirst({
         where: and(
-          eq(verifications.id, input.verificationId),
-          eq(verifications.workspaceId, ctx.workspaceId)
+          eq(bankTransactions.id, input.bankTransactionId),
+          eq(bankTransactions.workspaceId, ctx.workspaceId)
         ),
       });
 
-      if (!verification) {
+      if (!transaction) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
 
       const [attachment] = await ctx.db
         .insert(attachments)
         .values({
-          verificationId: input.verificationId,
+          bankTransactionId: input.bankTransactionId,
           fileName: input.fileName,
           fileUrl: input.fileUrl,
           fileSize: input.fileSize,
@@ -87,7 +87,7 @@ export const attachmentsRouter = router({
     .input(
       z.object({
         workspaceId: z.string(),
-        verificationId: z.string(),
+        bankTransactionId: z.string(),
         attachmentId: z.string(),
       })
     )
@@ -95,11 +95,11 @@ export const attachmentsRouter = router({
       const attachment = await ctx.db.query.attachments.findFirst({
         where: eq(attachments.id, input.attachmentId),
         with: {
-          verification: true,
+          bankTransaction: true,
         },
       });
 
-      if (!attachment || attachment.verification.workspaceId !== ctx.workspaceId) {
+      if (!attachment || attachment.bankTransaction.workspaceId !== ctx.workspaceId) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
-import { workspaces, fiscalPeriods, verifications, auditLogs, user } from "@/lib/db/schema";
+import { workspaces, fiscalPeriods, bankTransactions, auditLogs, user } from "@/lib/db/schema";
 import { eq, count, sum, desc, sql } from "drizzle-orm";
 import {
   Breadcrumb,
@@ -14,6 +14,7 @@ import { DashboardMetrics } from "@/components/dashboard/dashboard-metrics";
 import { VerificationChart } from "@/components/dashboard/verification-chart";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { PeriodsList } from "@/components/dashboard/periods-list";
+import { AGIDeadlinesWidget } from "@/components/dashboard/agi-deadlines-widget";
 
 export async function generateMetadata({
   params,
@@ -45,15 +46,15 @@ export default async function WorkspaceDashboardPage({
   }
 
   // Fetch all data in parallel
-  const [periods, recentVerifications, recentAuditLogs] = await Promise.all([
+  const [periods, recentBankTransactions, recentAuditLogs] = await Promise.all([
     // Periods with verification counts
     db.query.fiscalPeriods.findMany({
       where: eq(fiscalPeriods.workspaceId, workspace.id),
       orderBy: (periods, { desc }) => [desc(periods.startDate)],
     }),
-    // Recent verifications
-    db.query.verifications.findMany({
-      where: eq(verifications.workspaceId, workspace.id),
+    // Recent bank transactions
+    db.query.bankTransactions.findMany({
+      where: eq(bankTransactions.workspaceId, workspace.id),
       orderBy: (v, { desc }) => [desc(v.createdAt)],
       limit: 6,
       with: {
@@ -72,13 +73,13 @@ export default async function WorkspaceDashboardPage({
     }),
   ]);
 
-  // Get verification counts per period
+  // Get bank transaction counts per period
   const periodStats = await Promise.all(
     periods.map(async (period) => {
       const [result] = await db
         .select({ count: count() })
-        .from(verifications)
-        .where(eq(verifications.fiscalPeriodId, period.id));
+        .from(bankTransactions)
+        .where(eq(bankTransactions.fiscalPeriodId, period.id));
       return {
         ...period,
         verificationCount: result?.count || 0,
@@ -97,15 +98,15 @@ export default async function WorkspaceDashboardPage({
   if (currentPeriod) {
     const [aggregates] = await db
       .select({
-        totalAmount: sql<string>`COALESCE(SUM(CAST(${verifications.amount} AS DECIMAL)), 0)`,
+        totalAmount: sql<string>`COALESCE(SUM(CAST(${bankTransactions.amount} AS DECIMAL)), 0)`,
         count: count(),
       })
-      .from(verifications)
-      .where(eq(verifications.fiscalPeriodId, currentPeriod.id));
+      .from(bankTransactions)
+      .where(eq(bankTransactions.fiscalPeriodId, currentPeriod.id));
 
     // Get latest balance
-    const latestVerification = await db.query.verifications.findFirst({
-      where: eq(verifications.fiscalPeriodId, currentPeriod.id),
+    const latestTransaction = await db.query.bankTransactions.findFirst({
+      where: eq(bankTransactions.fiscalPeriodId, currentPeriod.id),
       orderBy: (v, { desc }) => [desc(v.accountingDate), desc(v.createdAt)],
       columns: { bookedBalance: true },
     });
@@ -113,8 +114,8 @@ export default async function WorkspaceDashboardPage({
     stats = {
       totalAmount: parseFloat(aggregates?.totalAmount || "0"),
       verificationCount: aggregates?.count || 0,
-      latestBalance: latestVerification?.bookedBalance
-        ? parseFloat(latestVerification.bookedBalance)
+      latestBalance: latestTransaction?.bookedBalance
+        ? parseFloat(latestTransaction.bookedBalance)
         : null,
     };
   }
@@ -124,17 +125,17 @@ export default async function WorkspaceDashboardPage({
   if (currentPeriod) {
     const monthlyData = await db
       .select({
-        month: sql<string>`TO_CHAR(${verifications.accountingDate}, 'Mon')`,
-        monthNum: sql<string>`TO_CHAR(${verifications.accountingDate}, 'MM')`,
-        amount: sql<number>`COALESCE(SUM(ABS(CAST(${verifications.amount} AS DECIMAL))), 0)`,
+        month: sql<string>`TO_CHAR(${bankTransactions.accountingDate}, 'Mon')`,
+        monthNum: sql<string>`TO_CHAR(${bankTransactions.accountingDate}, 'MM')`,
+        amount: sql<number>`COALESCE(SUM(ABS(CAST(${bankTransactions.amount} AS DECIMAL))), 0)`,
       })
-      .from(verifications)
-      .where(eq(verifications.fiscalPeriodId, currentPeriod.id))
+      .from(bankTransactions)
+      .where(eq(bankTransactions.fiscalPeriodId, currentPeriod.id))
       .groupBy(
-        sql`TO_CHAR(${verifications.accountingDate}, 'Mon')`,
-        sql`TO_CHAR(${verifications.accountingDate}, 'MM')`
+        sql`TO_CHAR(${bankTransactions.accountingDate}, 'Mon')`,
+        sql`TO_CHAR(${bankTransactions.accountingDate}, 'MM')`
       )
-      .orderBy(sql`TO_CHAR(${verifications.accountingDate}, 'MM')`);
+      .orderBy(sql`TO_CHAR(${bankTransactions.accountingDate}, 'MM')`);
 
     chartData = monthlyData.map((d) => ({
       month: d.month,
@@ -144,7 +145,7 @@ export default async function WorkspaceDashboardPage({
 
   // Combine activity items
   const activityItems = [
-    ...recentVerifications.map((v) => ({
+    ...recentBankTransactions.map((v) => ({
       id: v.id,
       type: "verification" as const,
       reference: v.reference,
@@ -201,6 +202,9 @@ export default async function WorkspaceDashboardPage({
 
         {/* Chart */}
         <VerificationChart data={chartData} />
+
+        {/* AGI Deadlines Widget */}
+        <AGIDeadlinesWidget workspaceId={workspace.id} workspaceSlug={workspaceSlug} />
 
         {/* Two Column: Activity + Periods */}
         <div className="grid gap-6 lg:grid-cols-2">

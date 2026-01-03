@@ -34,6 +34,7 @@ import { useWorkspace } from "@/components/workspace-provider";
 import { AddPayrollEntryDialog } from "@/components/payroll/add-payroll-entry-dialog";
 import { AgiPreviewDialog } from "@/components/payroll/agi-preview-dialog";
 import { PayrollRunEntriesTable } from "@/components/payroll/payroll-run-entries-table";
+import { AGIDeadlineCard } from "@/components/payroll/agi-deadline-card";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   draft: { label: "Utkast", color: "bg-gray-100 text-gray-700" },
@@ -259,6 +260,16 @@ export function PayrollRunPageClient({ runId, workspaceSlug }: PayrollRunPageCli
             </CardContent>
           </Card>
         </div>
+
+        {run.agiDeadline && (
+          <AGIDeadlineCard
+            payrollRunId={run.id}
+            workspaceId={workspace.id}
+            agiDeadline={run.agiDeadline}
+            agiConfirmedAt={run.agiConfirmedAt}
+            hasAGI={!!run.agiXml}
+          />
+        )}
 
         <Card>
           <CardHeader>

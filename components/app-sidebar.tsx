@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AddPeriodDialog } from "@/components/periods/add-period-dialog";
-import { AddVerificationDialog } from "@/components/verifications/add-verification-dialog";
+import { AddBankTransactionDialog } from "@/components/bank-transactions/add-bank-transaction-dialog";
 import { FullModeSidebar } from "@/components/full-mode-sidebar";
 import type { Workspace } from "@/lib/db/schema";
 import type { fiscalPeriods } from "@/lib/db/schema";
@@ -91,7 +91,7 @@ function SimpleSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const [addPeriodOpen, setAddPeriodOpen] = useState(false);
-  const [addVerificationOpen, setAddVerificationOpen] = useState(false);
+  const [addBankTransactionOpen, setAddBankTransactionOpen] = useState(false);
 
   const initials = user.name
     ? user.name
@@ -134,7 +134,7 @@ function SimpleSidebar({
             periods={periods}
             workspaceSlug={workspace.slug}
             onAddPeriod={() => setAddPeriodOpen(true)}
-            onAddVerification={() => setAddVerificationOpen(true)}
+            onAddVerification={() => setAddBankTransactionOpen(true)}
           />
 
           <SidebarGroup className="mt-auto">
@@ -226,11 +226,11 @@ function SimpleSidebar({
         onOpenChange={setAddPeriodOpen}
       />
 
-      <AddVerificationDialog
+      <AddBankTransactionDialog
         workspaceId={workspace.id}
         periods={periods}
-        open={addVerificationOpen}
-        onOpenChange={setAddVerificationOpen}
+        open={addBankTransactionOpen}
+        onOpenChange={setAddBankTransactionOpen}
       />
     </>
   );

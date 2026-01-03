@@ -31,7 +31,7 @@ import { createCuid } from "@/lib/utils/cuid";
 
 type FiscalPeriod = typeof fiscalPeriods.$inferSelect;
 
-interface AddVerificationDialogProps {
+interface AddBankTransactionDialogProps {
   workspaceId: string;
   periodId?: string;
   periods?: FiscalPeriod[];
@@ -39,7 +39,7 @@ interface AddVerificationDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-interface VerificationRow {
+interface BankTransactionRow {
   id: string;
   account: string;
   accountingDate: string;
@@ -47,7 +47,7 @@ interface VerificationRow {
   amount: string;
 }
 
-function createEmptyRow(): VerificationRow {
+function createEmptyRow(): BankTransactionRow {
   return {
     id: createCuid(),
     account: "",
@@ -57,39 +57,39 @@ function createEmptyRow(): VerificationRow {
   };
 }
 
-export function AddVerificationDialog({
+export function AddBankTransactionDialog({
   workspaceId,
   periodId: initialPeriodId,
   periods = [],
   open,
   onOpenChange,
-}: AddVerificationDialogProps) {
+}: AddBankTransactionDialogProps) {
   const router = useRouter();
   const utils = trpc.useUtils();
-  const [rows, setRows] = useState<VerificationRow[]>([createEmptyRow()]);
+  const [rows, setRows] = useState<BankTransactionRow[]>([createEmptyRow()]);
   const [pastedContent, setPastedContent] = useState("");
   const [selectedPeriodId, setSelectedPeriodId] = useState(initialPeriodId || "");
 
   const periodId = initialPeriodId || selectedPeriodId;
   const showPeriodSelector = !initialPeriodId && periods.length > 0;
 
-  const createVerifications = trpc.verifications.create.useMutation({
+  const createBankTransactions = trpc.bankTransactions.create.useMutation({
     onSuccess: () => {
       setRows([createEmptyRow()]);
       setPastedContent("");
       onOpenChange(false);
-      utils.verifications.list.invalidate({ workspaceId, periodId });
+      utils.bankTransactions.list.invalidate({ workspaceId, periodId });
       router.refresh();
     },
   });
 
-  const analyzeContent = trpc.verifications.analyzeContent.useMutation({
+  const analyzeContent = trpc.bankTransactions.analyzeContent.useMutation({
     onSuccess: (data) => {
-      if (data.verifications.length === 0) {
+      if (data.bankTransactions.length === 0) {
         toast.error("Ingen data hittades i texten.");
         return;
       }
-      const parsed: VerificationRow[] = data.verifications.slice(0, 50).map((v) => ({
+      const parsed: BankTransactionRow[] = data.bankTransactions.slice(0, 50).map((v) => ({
         id: createCuid(),
         account: v.office || "",
         accountingDate: v.accountingDate || "",
@@ -103,7 +103,7 @@ export function AddVerificationDialog({
     },
   });
 
-  function updateRow(id: string, field: keyof VerificationRow, value: string) {
+  function updateRow(id: string, field: keyof BankTransactionRow, value: string) {
     setRows((prev) =>
       prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
     );
@@ -136,10 +136,10 @@ export function AddVerificationDialog({
 
     if (validRows.length === 0) return;
 
-    createVerifications.mutate({
+    createBankTransactions.mutate({
       workspaceId,
       fiscalPeriodId: periodId,
-      verifications: validRows.map((row) => ({
+      bankTransactions: validRows.map((row) => ({
         office: row.account || null,
         accountingDate: row.accountingDate || null,
         ledgerDate: null,
@@ -155,9 +155,9 @@ export function AddVerificationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="min-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Lägg till verifikationer</DialogTitle>
+          <DialogTitle>Lägg till banktransaktioner</DialogTitle>
           <DialogDescription>
-            Lägg till upp till 50 verifikationer åt gången.
+            Lägg till upp till 50 transaktioner åt gången.
           </DialogDescription>
         </DialogHeader>
 
@@ -181,7 +181,7 @@ export function AddVerificationDialog({
 
         {periods.length === 0 && !initialPeriodId && (
           <p className="text-sm text-muted-foreground">
-            Du måste skapa en bokföringsperiod först innan du kan lägga till verifikationer.
+            Du måste skapa en bokföringsperiod först innan du kan lägga till transaktioner.
           </p>
         )}
 
@@ -265,7 +265,7 @@ export function AddVerificationDialog({
             <Textarea
               placeholder="Klistra in data från Excel, bankutdrag, PDF-text, e-post eller annat format...
 
-AI:n analyserar innehållet och extraherar verifikationer automatiskt."
+AI:n analyserar innehållet och extraherar transaktioner automatiskt."
               value={pastedContent}
               onChange={(e) => setPastedContent(e.target.value)}
               className="flex-1 min-h-[200px] font-mono text-sm"
@@ -290,9 +290,9 @@ AI:n analyserar innehållet och extraherar verifikationer automatiskt."
           </TabsContent>
         </Tabs>
 
-        {createVerifications.error && (
+        {createBankTransactions.error && (
           <p className="text-sm text-red-500">
-            {createVerifications.error.message}
+            {createBankTransactions.error.message}
           </p>
         )}
 
@@ -301,18 +301,18 @@ AI:n analyserar innehållet och extraherar verifikationer automatiskt."
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={createVerifications.isPending}
+            disabled={createBankTransactions.isPending}
           >
             Avbryt
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={createVerifications.isPending || !periodId}
+            disabled={createBankTransactions.isPending || !periodId}
           >
-            {createVerifications.isPending ? (
+            {createBankTransactions.isPending ? (
               <Spinner />
             ) : (
-              `Lägg till ${rows.filter((r) => r.reference || r.amount).length} verifikationer`
+              `Lägg till ${rows.filter((r) => r.reference || r.amount).length} transaktioner`
             )}
           </Button>
         </div>
@@ -320,3 +320,4 @@ AI:n analyserar innehållet och extraherar verifikationer automatiskt."
     </Dialog>
   );
 }
+

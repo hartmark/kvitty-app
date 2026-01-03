@@ -119,6 +119,18 @@ export const payrollRouter = router({
 
       const runNumber = (existingRuns[0]?.maxRunNumber || 0) + 1;
 
+      // Calculate AGI deadline: period (YYYYMM) + 1 month, set to 12th
+      // Example: January 2025 (202501) -> deadline Feb 12, 2025
+      const periodYear = parseInt(input.period.substring(0, 4));
+      const periodMonth = parseInt(input.period.substring(4, 6));
+      let deadlineYear = periodYear;
+      let deadlineMonth = periodMonth + 1;
+      if (deadlineMonth > 12) {
+        deadlineMonth = 1;
+        deadlineYear += 1;
+      }
+      const agiDeadline = `${deadlineYear}-${String(deadlineMonth).padStart(2, "0")}-12`;
+
       const [run] = await ctx.db
         .insert(payrollRuns)
         .values({
@@ -129,6 +141,7 @@ export const payrollRouter = router({
           paymentDate: input.paymentDate,
           status: "draft",
           createdBy: ctx.session.user.id,
+          agiDeadline,
         })
         .returning();
 
@@ -558,6 +571,77 @@ export const payrollRouter = router({
         xml: run.agiXml,
         filename: `AGI_${run.period}_${run.runNumber}.xml`,
       };
+    }),
+
+  confirmAGIReported: workspaceProcedure
+    .input(z.object({ payrollRunId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const run = await ctx.db.query.payrollRuns.findFirst({
+        where: and(
+          eq(payrollRuns.id, input.payrollRunId),
+          eq(payrollRuns.workspaceId, ctx.workspaceId)
+        ),
+      });
+
+      if (!run) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      if (!run.agiXml) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "AGI-fil måste genereras först",
+        });
+      }
+
+      const [updated] = await ctx.db
+        .update(payrollRuns)
+        .set({
+          agiConfirmedAt: new Date(),
+          agiConfirmedBy: ctx.session.user.id,
+          status: run.status === "paid" ? "reported" : run.status,
+        })
+        .where(eq(payrollRuns.id, input.payrollRunId))
+        .returning();
+
+      return updated;
+    }),
+
+  getAGIDeadlines: workspaceProcedure
+    .input(
+      z.object({
+        includePast: z.boolean().default(false),
+        limit: z.number().min(1).max(100).default(20),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      const runs = await ctx.db.query.payrollRuns.findMany({
+        where: and(
+          eq(payrollRuns.workspaceId, ctx.workspaceId),
+          input.includePast
+            ? undefined
+            : sql`${payrollRuns.agiDeadline} >= ${today.toISOString().split("T")[0]}`
+        ),
+        orderBy: [sql`${payrollRuns.agiDeadline} ASC`],
+        limit: input.limit,
+      });
+
+      return runs.map((run) => ({
+        id: run.id,
+        period: run.period,
+        runNumber: run.runNumber,
+        agiDeadline: run.agiDeadline,
+        agiConfirmedAt: run.agiConfirmedAt,
+        agiConfirmedBy: run.agiConfirmedBy,
+        hasAGI: !!run.agiXml,
+        isOverdue: run.agiDeadline
+          ? new Date(run.agiDeadline) < today
+          : false,
+        isConfirmed: !!run.agiConfirmedAt,
+      }));
     }),
 });
 

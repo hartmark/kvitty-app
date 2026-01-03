@@ -8,22 +8,21 @@ import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Separator } from "@/components/ui/separator";
 
-interface VerificationFilterBarProps {
+interface BankTransactionFilterBarProps {
   search: string;
   dateFrom: string;
   dateTo: string;
 }
 
-export function VerificationFilterBar({
+export function BankTransactionFilterBar({
   search,
   dateFrom,
   dateTo,
-}: VerificationFilterBarProps) {
+}: BankTransactionFilterBarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [searchInput, setSearchInput] = useState(search);
 
-  // Sync searchInput with URL on mount and URL changes
   useEffect(() => {
     setSearchInput(search);
   }, [search]);
@@ -46,7 +45,6 @@ export function VerificationFilterBar({
     [router, searchParams]
   );
 
-  // Debounced search update
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchInput !== search) {
@@ -61,7 +59,6 @@ export function VerificationFilterBar({
 
   return (
     <div className="flex flex-col sm:flex-row gap-3">
-      {/* Global Search */}
       <div className="relative flex-1 max-w-sm">
         <MagnifyingGlass className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input
@@ -84,7 +81,6 @@ export function VerificationFilterBar({
 
       <Separator orientation="vertical" className="hidden sm:block" />
 
-      {/* Date Range Filter */}
       <div className="flex items-center gap-2">
         <DatePicker
           value={dateFrom}
@@ -98,7 +94,6 @@ export function VerificationFilterBar({
         />
       </div>
 
-      {/* Clear All Filters */}
       {hasFilters && (
         <Button
           variant="ghost"
@@ -115,3 +110,4 @@ export function VerificationFilterBar({
     </div>
   );
 }
+

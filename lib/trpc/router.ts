@@ -1,7 +1,7 @@
 import { router } from "./init";
 import { workspacesRouter } from "./routers/workspaces";
 import { periodsRouter } from "./routers/periods";
-import { verificationsRouter } from "./routers/verifications";
+import { bankTransactionsRouter } from "./routers/bank-transactions";
 import { attachmentsRouter } from "./routers/attachments";
 import { commentsRouter } from "./routers/comments";
 import { invitesRouter } from "./routers/invites";
@@ -20,7 +20,7 @@ import { productsRouter } from "./routers/products";
 export const appRouter = router({
   workspaces: workspacesRouter,
   periods: periodsRouter,
-  verifications: verificationsRouter,
+  bankTransactions: bankTransactionsRouter,
   attachments: attachmentsRouter,
   comments: commentsRouter,
   invites: invitesRouter,

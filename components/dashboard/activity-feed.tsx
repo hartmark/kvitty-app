@@ -56,6 +56,8 @@ function getActionLabel(action: string): string {
 
 function getEntityLabel(entityType: string): string {
   switch (entityType) {
+    case "bank_transaction":
+      return "banktransaktion";
     case "verification":
       return "verifikation";
     case "attachment":

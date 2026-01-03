@@ -23,6 +23,7 @@ import { InvoiceMetadataSection } from "@/components/invoices/invoice-metadata-s
 import { InvoiceLinesSection } from "@/components/invoices/invoice-lines-section";
 import { InvoiceTotals } from "@/components/invoices/invoice-totals";
 import { AddProductDialog } from "@/components/invoices/add-product-dialog";
+import { SendInvoiceDialog } from "@/components/invoices/send-invoice-dialog";
 
 interface InvoiceDetailClientProps {
   invoiceId: string;
@@ -33,13 +34,14 @@ export function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientProps) {
   const router = useRouter();
   const utils = trpc.useUtils();
   const [addProductOpen, setAddProductOpen] = useState(false);
+  const [sendInvoiceOpen, setSendInvoiceOpen] = useState(false);
 
   const { data: invoice, isLoading } = trpc.invoices.get.useQuery({
     workspaceId: workspace.id,
     id: invoiceId,
   });
 
-  const markAsSent = trpc.invoices.markAsSent.useMutation({
+  const sendInvoice = trpc.invoices.sendInvoice.useMutation({
     onSuccess: () => utils.invoices.get.invalidate({ workspaceId: workspace.id, id: invoiceId }),
   });
 
@@ -140,19 +142,12 @@ export function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientProps) {
             Ladda ner PDF
           </Button>
           {isDraft && (
-            <>
-              <Button
-                onClick={() => markAsSent.mutate({ workspaceId: workspace.id, id: invoiceId })}
-                disabled={markAsSent.isPending}
-              >
-                {markAsSent.isPending ? (
-                  <Spinner className="size-4 mr-2" />
-                ) : (
-                  <PaperPlaneTilt className="size-4 mr-2" />
-                )}
-                Markera som skickad
-              </Button>
-            </>
+            <Button
+              onClick={() => setSendInvoiceOpen(true)}
+            >
+              <PaperPlaneTilt className="size-4 mr-2" />
+              Skicka faktura
+            </Button>
           )}
           {invoice.status === "sent" && (
             <Button
@@ -232,6 +227,20 @@ export function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientProps) {
         onOpenChange={setAddProductOpen}
         workspaceId={workspace.id}
         invoiceId={invoiceId}
+      />
+
+      {/* Send Invoice Dialog */}
+      <SendInvoiceDialog
+        open={sendInvoiceOpen}
+        onOpenChange={setSendInvoiceOpen}
+        invoiceId={invoiceId}
+        workspaceId={workspace.id}
+        customerEmail={invoice.customer.email}
+        invoiceNumber={invoice.invoiceNumber}
+        shareToken={invoice.shareToken}
+        sentMethod={invoice.sentMethod}
+        openedCount={invoice.openedCount}
+        lastOpenedAt={invoice.lastOpenedAt}
       />
     </div>
   );

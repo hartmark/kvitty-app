@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { workspaces, fiscalPeriods, verifications } from "@/lib/db/schema";
+import { workspaces, fiscalPeriods, bankTransactions } from "@/lib/db/schema";
 import { eq, and, ilike, gte, lte, or } from "drizzle-orm";
 import { getSession } from "@/lib/session";
 import {
@@ -14,9 +14,9 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { VerificationsTable } from "@/components/verifications/verifications-table";
-import { AddVerificationButton } from "@/components/verifications/add-verification-button";
-import { VerificationFilterBar } from "@/components/verifications/verification-filter-bar";
+import { BankTransactionsTable } from "@/components/bank-transactions/bank-transactions-table";
+import { AddBankTransactionButton } from "@/components/bank-transactions/add-bank-transaction-button";
+import { BankTransactionFilterBar } from "@/components/bank-transactions/bank-transaction-filter-bar";
 
 export async function generateMetadata({
   params,
@@ -76,26 +76,26 @@ export default async function PeriodPage({
   }
 
   // Build filter conditions
-  const conditions = [eq(verifications.fiscalPeriodId, period.id)];
+  const conditions = [eq(bankTransactions.fiscalPeriodId, period.id)];
 
   if (search) {
     conditions.push(
       or(
-        ilike(verifications.reference, `%${search}%`),
-        ilike(verifications.office, `%${search}%`)
+        ilike(bankTransactions.reference, `%${search}%`),
+        ilike(bankTransactions.office, `%${search}%`)
       )!
     );
   }
 
   if (dateFrom) {
-    conditions.push(gte(verifications.accountingDate, dateFrom));
+    conditions.push(gte(bankTransactions.accountingDate, dateFrom));
   }
 
   if (dateTo) {
-    conditions.push(lte(verifications.accountingDate, dateTo));
+    conditions.push(lte(bankTransactions.accountingDate, dateTo));
   }
 
-  const data = await db.query.verifications.findMany({
+  const data = await db.query.bankTransactions.findMany({
     where: and(...conditions),
     orderBy: (v, { desc }) => [desc(v.accountingDate), desc(v.createdAt)],
     with: {
@@ -137,17 +137,17 @@ export default async function PeriodPage({
               {period.startDate} — {period.endDate}
             </p>
           </div>
-          <AddVerificationButton
+          <AddBankTransactionButton
             workspaceId={workspace.id}
             periodId={period.id}
           />
         </div>
-        <VerificationFilterBar
+        <BankTransactionFilterBar
           search={search ?? ""}
           dateFrom={dateFrom ?? ""}
           dateTo={dateTo ?? ""}
         />
-        <VerificationsTable
+        <BankTransactionsTable
           data={data}
           workspaceId={workspace.id}
           hasFilters={!!(search || dateFrom || dateTo)}

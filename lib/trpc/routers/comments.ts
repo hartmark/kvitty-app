@@ -1,27 +1,27 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, workspaceProcedure } from "../init";
-import { comments, verifications, auditLogs } from "@/lib/db/schema";
+import { comments, bankTransactions, auditLogs } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export const commentsRouter = router({
   list: workspaceProcedure
-    .input(z.object({ workspaceId: z.string(), verificationId: z.string() }))
+    .input(z.object({ workspaceId: z.string(), bankTransactionId: z.string() }))
     .query(async ({ ctx, input }) => {
-      // Verify verification belongs to workspace
-      const verification = await ctx.db.query.verifications.findFirst({
+      // Verify bank transaction belongs to workspace
+      const transaction = await ctx.db.query.bankTransactions.findFirst({
         where: and(
-          eq(verifications.id, input.verificationId),
-          eq(verifications.workspaceId, ctx.workspaceId)
+          eq(bankTransactions.id, input.bankTransactionId),
+          eq(bankTransactions.workspaceId, ctx.workspaceId)
         ),
       });
 
-      if (!verification) {
+      if (!transaction) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
 
       const items = await ctx.db.query.comments.findMany({
-        where: eq(comments.verificationId, input.verificationId),
+        where: eq(comments.bankTransactionId, input.bankTransactionId),
         orderBy: (c, { desc }) => [desc(c.createdAt)],
         with: {
           createdByUser: {
@@ -37,27 +37,27 @@ export const commentsRouter = router({
     .input(
       z.object({
         workspaceId: z.string(),
-        verificationId: z.string(),
+        bankTransactionId: z.string(),
         content: z.string().min(1, "Kommentar krävs"),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // Verify verification belongs to workspace
-      const verification = await ctx.db.query.verifications.findFirst({
+      // Verify bank transaction belongs to workspace
+      const transaction = await ctx.db.query.bankTransactions.findFirst({
         where: and(
-          eq(verifications.id, input.verificationId),
-          eq(verifications.workspaceId, ctx.workspaceId)
+          eq(bankTransactions.id, input.bankTransactionId),
+          eq(bankTransactions.workspaceId, ctx.workspaceId)
         ),
       });
 
-      if (!verification) {
+      if (!transaction) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
 
       const [comment] = await ctx.db
         .insert(comments)
         .values({
-          verificationId: input.verificationId,
+          bankTransactionId: input.bankTransactionId,
           content: input.content,
           createdBy: ctx.session.user.id,
         })
@@ -80,7 +80,7 @@ export const commentsRouter = router({
     .input(
       z.object({
         workspaceId: z.string(),
-        verificationId: z.string(),
+        bankTransactionId: z.string(),
         commentId: z.string(),
       })
     )
@@ -88,11 +88,11 @@ export const commentsRouter = router({
       const comment = await ctx.db.query.comments.findFirst({
         where: eq(comments.id, input.commentId),
         with: {
-          verification: true,
+          bankTransaction: true,
         },
       });
 
-      if (!comment || comment.verification.workspaceId !== ctx.workspaceId) {
+      if (!comment || comment.bankTransaction.workspaceId !== ctx.workspaceId) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
 

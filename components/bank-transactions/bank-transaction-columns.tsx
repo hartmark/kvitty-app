@@ -3,15 +3,15 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { verifications } from "@/lib/db/schema";
+import type { bankTransactions } from "@/lib/db/schema";
 
-export type Verification = typeof verifications.$inferSelect & {
+export type BankTransaction = typeof bankTransactions.$inferSelect & {
   createdByUser: { id: string; name: string | null; email: string } | null;
 };
 
 export const createColumns = (
-  onView: (verification: Verification) => void
-): ColumnDef<Verification>[] => [
+  onView: (transaction: BankTransaction) => void
+): ColumnDef<BankTransaction>[] => [
   {
     accessorKey: "office",
     header: "Konto",
@@ -76,3 +76,4 @@ export const createColumns = (
     ),
   },
 ];
+
