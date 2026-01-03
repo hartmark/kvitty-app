@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Receipt } from "@phosphor-icons/react";
+import { GoogleLogo, Receipt } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { signIn } from "@/lib/auth-client";
+import { authClient, signIn } from "@/lib/auth-client";
 
 export function LoginForm({
   className,
@@ -23,7 +23,23 @@ export function LoginForm({
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function handleGoogleSignIn() {
+    setIsGoogleLoading(true);
+    setError(null);
+    try {
+      await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/app",
+      });
+    } catch (err) {
+      setError("Kunde inte logga in med Google. Försök igen.");
+      console.error(err);
+      setIsGoogleLoading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -67,6 +83,26 @@ export function LoginForm({
             <FieldDescription>
               Har du inget konto? <a href="/signup">Registrera dig</a>
             </FieldDescription>
+          </div>
+          <Field>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleGoogleSignIn}
+              disabled={isGoogleLoading || isLoading}
+            >
+              {isGoogleLoading ? (
+                <Spinner />
+              ) : (
+                <GoogleLogo className="size-4" weight="bold" />
+              )}
+              Fortsätt med Google
+            </Button>
+          </Field>
+          <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
+            <span className="relative z-10 bg-background px-2 text-muted-foreground">
+              eller
+            </span>
           </div>
           <Field>
             <FieldLabel htmlFor="email">E-post</FieldLabel>

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const createCustomerSchema = z.object({
   name: z.string().min(1, "Namn krävs").max(100, "Max 100 tecken"),
+  contactPerson: z.string().max(100).optional(),
   orgNumber: z.string().max(20).optional(),
   email: z.string().email("Ogiltig e-post").optional().or(z.literal("")),
   phone: z.string().max(20).optional(),

@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import type { Workspace, Invoice, InvoiceLine, Customer } from "@/lib/db/schema";
+import { unitLabels } from "@/lib/validations/product";
 
 interface InvoicePdfData {
   workspace: Workspace;
@@ -95,11 +96,12 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
   // Line items table
   y = 110;
   const colWidths = {
-    desc: 80,
-    qty: 25,
-    price: 30,
-    vat: 20,
-    amount: 30,
+    desc: 65,
+    qty: 20,
+    unit: 20,
+    price: 28,
+    vat: 18,
+    amount: 28,
   };
 
   // Table header
@@ -108,10 +110,16 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.text("Beskrivning", margin + 2, y);
-  doc.text("Antal", margin + colWidths.desc + 2, y);
-  doc.text("À-pris", margin + colWidths.desc + colWidths.qty + 2, y);
-  doc.text("Moms", margin + colWidths.desc + colWidths.qty + colWidths.price + 2, y);
+  let colX = margin + 2;
+  doc.text("Beskrivning", colX, y);
+  colX += colWidths.desc;
+  doc.text("Antal", colX, y);
+  colX += colWidths.qty;
+  doc.text("Enhet", colX, y);
+  colX += colWidths.unit;
+  doc.text("À-pris", colX, y);
+  colX += colWidths.price;
+  doc.text("Moms", colX, y);
   doc.text("Belopp", pageWidth - margin - 2, y, { align: "right" });
 
   y += 8;
@@ -125,11 +133,34 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
       y = margin;
     }
 
-    doc.text(truncate(line.description, 45), margin + 2, y);
-    doc.text(formatNumber(parseFloat(line.quantity)), margin + colWidths.desc + 2, y);
-    doc.text(formatCurrency(parseFloat(line.unitPrice)), margin + colWidths.desc + colWidths.qty + 2, y);
-    doc.text(`${line.vatRate}%`, margin + colWidths.desc + colWidths.qty + colWidths.price + 2, y);
-    doc.text(formatCurrency(parseFloat(line.amount)), pageWidth - margin - 2, y, { align: "right" });
+    const isTextLine = line.lineType === "text";
+    let rowX = margin + 2;
+
+    doc.text(truncate(line.description, 35), rowX, y);
+    rowX += colWidths.desc;
+
+    if (isTextLine) {
+      // Text lines show dashes for numeric fields
+      doc.text("-", rowX, y);
+      rowX += colWidths.qty;
+      doc.text("-", rowX, y);
+      rowX += colWidths.unit;
+      doc.text("-", rowX, y);
+      rowX += colWidths.price;
+      doc.text("-", rowX, y);
+      doc.text("-", pageWidth - margin - 2, y, { align: "right" });
+    } else {
+      // Product lines show all values
+      doc.text(formatNumber(parseFloat(line.quantity)), rowX, y);
+      rowX += colWidths.qty;
+      const unitLabel = line.unit ? (unitLabels[line.unit] || line.unit) : "-";
+      doc.text(unitLabel, rowX, y);
+      rowX += colWidths.unit;
+      doc.text(formatCurrency(parseFloat(line.unitPrice)), rowX, y);
+      rowX += colWidths.price;
+      doc.text(`${line.vatRate}%`, rowX, y);
+      doc.text(formatCurrency(parseFloat(line.amount)), pageWidth - margin - 2, y, { align: "right" });
+    }
 
     y += 6;
   }

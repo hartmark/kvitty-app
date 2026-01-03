@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { HouseIcon, Gear, Users, SignOut, User } from "@phosphor-icons/react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { NavPeriods } from "@/components/nav-periods";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
@@ -89,16 +89,17 @@ function SimpleSidebar({
   ...props
 }: AppSidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [addPeriodOpen, setAddPeriodOpen] = useState(false);
   const [addVerificationOpen, setAddVerificationOpen] = useState(false);
 
   const initials = user.name
     ? user.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
     : user.email.slice(0, 2).toUpperCase();
 
   return (
@@ -195,10 +196,14 @@ function SimpleSidebar({
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() => {
+                    onClick={async () => {
                       clearUserCookie();
-                      signOut().then(() => {
-                        window.location.href = "/";
+                      await signOut({
+                        fetchOptions: {
+                          onSuccess: () => {
+                            router.push("/login");
+                          },
+                        },
                       });
                     }}
                     className="text-red-600"

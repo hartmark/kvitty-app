@@ -15,6 +15,7 @@ import { payrollRouter } from "./routers/payroll";
 import { lockedPeriodsRouter } from "./routers/locked-periods";
 import { customersRouter } from "./routers/customers";
 import { invoicesRouter } from "./routers/invoices";
+import { productsRouter } from "./routers/products";
 
 export const appRouter = router({
   workspaces: workspacesRouter,
@@ -33,6 +34,7 @@ export const appRouter = router({
   lockedPeriods: lockedPeriodsRouter,
   customers: customersRouter,
   invoices: invoicesRouter,
+  products: productsRouter,
 });
 
 export type AppRouter = typeof appRouter;

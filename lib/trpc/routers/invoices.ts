@@ -1,9 +1,120 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, workspaceProcedure } from "../init";
-import { invoices, invoiceLines, customers } from "@/lib/db/schema";
-import { eq, and, sql, desc } from "drizzle-orm";
-import { createInvoiceSchema, updateInvoiceSchema } from "@/lib/validations/invoice";
+import {
+  invoices,
+  invoiceLines,
+  customers,
+  products,
+  journalEntries,
+  journalEntryLines,
+  fiscalPeriods,
+} from "@/lib/db/schema";
+import { eq, and, sql, desc, max, lte, gte } from "drizzle-orm";
+import {
+  createInvoiceSchema,
+  updateInvoiceSchema,
+  addInvoiceLineSchema,
+  updateInvoiceLineSchema,
+  updateLineOrderSchema,
+  updateInvoiceMetadataSchema,
+} from "@/lib/validations/invoice";
+
+// Helper to recalculate invoice totals
+async function recalculateInvoiceTotals(
+  db: Parameters<Parameters<typeof workspaceProcedure.query>[0]>[0]["ctx"]["db"],
+  invoiceId: string
+) {
+  const lines = await db.query.invoiceLines.findMany({
+    where: eq(invoiceLines.invoiceId, invoiceId),
+  });
+
+  let subtotal = 0;
+  let vatAmount = 0;
+
+  for (const line of lines) {
+    const lineAmount = Number(line.amount);
+    subtotal += lineAmount;
+    vatAmount += lineAmount * (line.vatRate / 100);
+  }
+
+  const total = subtotal + vatAmount;
+
+  await db
+    .update(invoices)
+    .set({
+      subtotal: subtotal.toFixed(2),
+      vatAmount: vatAmount.toFixed(2),
+      total: total.toFixed(2),
+      updatedAt: new Date(),
+    })
+    .where(eq(invoices.id, invoiceId));
+}
+
+// Helper to calculate invoice breakdown by product type and VAT rate
+// Returns amounts for journal entry creation
+interface InvoiceBreakdown {
+  totalInclVat: number;        // Total including VAT (for 1510 debit)
+  serviceAmount: number;       // Tjänster subtotal excl VAT (for 3010 credit)
+  goodsAmount: number;         // Varor subtotal excl VAT (for 3040 credit)
+  vat25: number;               // 25% VAT amount (for 2610 credit)
+  vat12: number;               // 12% VAT amount (for 2620 credit)
+  vat6: number;                // 6% VAT amount (for 2630 credit)
+}
+
+function calculateInvoiceBreakdown(
+  lines: Array<{
+    lineType: string;
+    productType: string | null;
+    amount: string;
+    vatRate: number;
+  }>
+): InvoiceBreakdown {
+  let serviceAmount = 0;
+  let goodsAmount = 0;
+  let vat25 = 0;
+  let vat12 = 0;
+  let vat6 = 0;
+
+  for (const line of lines) {
+    // Skip text lines - they don't generate revenue
+    if (line.lineType === "text") continue;
+
+    const amount = Number(line.amount);
+    const vatAmount = amount * (line.vatRate / 100);
+
+    // Determine product type: use stored type, default to T (tjänst) if not set
+    const productType = line.productType || "T";
+
+    // Add to appropriate revenue account
+    if (productType === "V") {
+      goodsAmount += amount;
+    } else {
+      serviceAmount += amount;
+    }
+
+    // Add to appropriate VAT account
+    if (line.vatRate === 25) {
+      vat25 += vatAmount;
+    } else if (line.vatRate === 12) {
+      vat12 += vatAmount;
+    } else if (line.vatRate === 6) {
+      vat6 += vatAmount;
+    }
+    // 0% VAT doesn't need an entry
+  }
+
+  const totalInclVat = serviceAmount + goodsAmount + vat25 + vat12 + vat6;
+
+  return {
+    totalInclVat,
+    serviceAmount,
+    goodsAmount,
+    vat25,
+    vat12,
+    vat6,
+  };
+}
 
 export const invoicesRouter = router({
   list: workspaceProcedure
@@ -23,7 +134,9 @@ export const invoicesRouter = router({
           : eq(invoices.workspaceId, ctx.workspaceId),
         with: {
           customer: true,
-          lines: true,
+          lines: {
+            orderBy: (l, { asc }) => [asc(l.sortOrder)],
+          },
         },
         orderBy: [desc(invoices.invoiceDate), desc(invoices.invoiceNumber)],
         limit: input.limit,
@@ -44,6 +157,9 @@ export const invoicesRouter = router({
           customer: true,
           lines: {
             orderBy: (l, { asc }) => [asc(l.sortOrder)],
+            with: {
+              product: true,
+            },
           },
           fiscalPeriod: true,
         },
@@ -65,6 +181,7 @@ export const invoicesRouter = router({
     return (result[0]?.maxNumber || 0) + 1;
   }),
 
+  // Simplified create - no lines required (add them on detail page)
   create: workspaceProcedure
     .input(createInvoiceSchema)
     .mutation(async ({ ctx, input }) => {
@@ -88,19 +205,7 @@ export const invoicesRouter = router({
 
       const invoiceNumber = (result[0]?.maxNumber || 0) + 1;
 
-      // Calculate totals
-      let subtotal = 0;
-      let vatAmount = 0;
-
-      for (const line of input.lines) {
-        const lineAmount = line.quantity * line.unitPrice;
-        subtotal += lineAmount;
-        vatAmount += lineAmount * (line.vatRate / 100);
-      }
-
-      const total = subtotal + vatAmount;
-
-      // Create invoice
+      // Create invoice with zero totals (will be updated when lines are added)
       const [invoice] = await ctx.db
         .insert(invoices)
         .values({
@@ -111,32 +216,17 @@ export const invoicesRouter = router({
           invoiceDate: input.invoiceDate,
           dueDate: input.dueDate,
           reference: input.reference || null,
-          subtotal: subtotal.toFixed(2),
-          vatAmount: vatAmount.toFixed(2),
-          total: total.toFixed(2),
+          subtotal: "0.00",
+          vatAmount: "0.00",
+          total: "0.00",
           status: "draft",
         })
         .returning();
 
-      // Create lines
-      for (let i = 0; i < input.lines.length; i++) {
-        const line = input.lines[i];
-        const lineAmount = line.quantity * line.unitPrice;
-
-        await ctx.db.insert(invoiceLines).values({
-          invoiceId: invoice.id,
-          description: line.description,
-          quantity: line.quantity.toString(),
-          unitPrice: line.unitPrice.toFixed(2),
-          vatRate: line.vatRate,
-          amount: lineAmount.toFixed(2),
-          sortOrder: i,
-        });
-      }
-
       return invoice;
     }),
 
+  // Full update with lines (replaces all lines)
   update: workspaceProcedure
     .input(updateInvoiceSchema)
     .mutation(async ({ ctx, input }) => {
@@ -196,8 +286,11 @@ export const invoicesRouter = router({
 
         await ctx.db.insert(invoiceLines).values({
           invoiceId: input.id,
+          productId: line.productId || null,
+          lineType: line.lineType,
           description: line.description,
           quantity: line.quantity.toString(),
+          unit: line.unit || null,
           unitPrice: line.unitPrice.toFixed(2),
           vatRate: line.vatRate,
           amount: lineAmount.toFixed(2),
@@ -206,6 +299,261 @@ export const invoicesRouter = router({
       }
 
       return updated;
+    }),
+
+  // Update invoice metadata (customer, dates, reference)
+  updateMetadata: workspaceProcedure
+    .input(updateInvoiceMetadataSchema)
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.query.invoices.findFirst({
+        where: and(
+          eq(invoices.id, input.id),
+          eq(invoices.workspaceId, ctx.workspaceId)
+        ),
+      });
+
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      if (existing.status !== "draft") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Kan endast redigera utkast",
+        });
+      }
+
+      // Verify customer if provided
+      if (input.customerId) {
+        const customer = await ctx.db.query.customers.findFirst({
+          where: and(
+            eq(customers.id, input.customerId),
+            eq(customers.workspaceId, ctx.workspaceId)
+          ),
+        });
+
+        if (!customer) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Kund hittades inte" });
+        }
+      }
+
+      const updateData: Record<string, unknown> = {
+        updatedAt: new Date(),
+      };
+
+      if (input.customerId !== undefined) updateData.customerId = input.customerId;
+      if (input.invoiceDate !== undefined) updateData.invoiceDate = input.invoiceDate;
+      if (input.dueDate !== undefined) updateData.dueDate = input.dueDate;
+      if (input.reference !== undefined) updateData.reference = input.reference || null;
+
+      const [updated] = await ctx.db
+        .update(invoices)
+        .set(updateData)
+        .where(eq(invoices.id, input.id))
+        .returning();
+
+      return updated;
+    }),
+
+  // Add a single line to invoice
+  addLine: workspaceProcedure
+    .input(addInvoiceLineSchema)
+    .mutation(async ({ ctx, input }) => {
+      const invoice = await ctx.db.query.invoices.findFirst({
+        where: and(
+          eq(invoices.id, input.invoiceId),
+          eq(invoices.workspaceId, ctx.workspaceId)
+        ),
+      });
+
+      if (!invoice) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      if (invoice.status !== "draft") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Kan endast redigera utkast",
+        });
+      }
+
+      // Look up product to get productType if productId is provided
+      let productType: "V" | "T" | null = null;
+      if (input.productId) {
+        const product = await ctx.db.query.products.findFirst({
+          where: and(
+            eq(products.id, input.productId),
+            eq(products.workspaceId, ctx.workspaceId)
+          ),
+        });
+        if (product) {
+          productType = product.type;
+        }
+      }
+
+      // Get max sortOrder
+      const maxOrderResult = await ctx.db
+        .select({ maxOrder: sql<number>`COALESCE(MAX(${invoiceLines.sortOrder}), -1)` })
+        .from(invoiceLines)
+        .where(eq(invoiceLines.invoiceId, input.invoiceId));
+
+      const newSortOrder = (maxOrderResult[0]?.maxOrder ?? -1) + 1;
+      const lineAmount = input.quantity * input.unitPrice;
+
+      const [line] = await ctx.db
+        .insert(invoiceLines)
+        .values({
+          invoiceId: input.invoiceId,
+          productId: input.productId || null,
+          lineType: input.lineType,
+          description: input.description,
+          quantity: input.quantity.toString(),
+          unit: input.unit || null,
+          unitPrice: input.unitPrice.toFixed(2),
+          vatRate: input.vatRate,
+          productType: productType,
+          amount: lineAmount.toFixed(2),
+          sortOrder: newSortOrder,
+        })
+        .returning();
+
+      // Recalculate totals
+      await recalculateInvoiceTotals(ctx.db, input.invoiceId);
+
+      return line;
+    }),
+
+  // Update a single line
+  updateLine: workspaceProcedure
+    .input(updateInvoiceLineSchema)
+    .mutation(async ({ ctx, input }) => {
+      const invoice = await ctx.db.query.invoices.findFirst({
+        where: and(
+          eq(invoices.id, input.invoiceId),
+          eq(invoices.workspaceId, ctx.workspaceId)
+        ),
+      });
+
+      if (!invoice) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      if (invoice.status !== "draft") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Kan endast redigera utkast",
+        });
+      }
+
+      const existingLine = await ctx.db.query.invoiceLines.findFirst({
+        where: and(
+          eq(invoiceLines.id, input.lineId),
+          eq(invoiceLines.invoiceId, input.invoiceId)
+        ),
+      });
+
+      if (!existingLine) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Rad hittades inte" });
+      }
+
+      const updateData: Record<string, unknown> = {};
+
+      if (input.description !== undefined) updateData.description = input.description;
+      if (input.quantity !== undefined) updateData.quantity = input.quantity.toString();
+      if (input.unit !== undefined) updateData.unit = input.unit;
+      if (input.unitPrice !== undefined) updateData.unitPrice = input.unitPrice.toFixed(2);
+      if (input.vatRate !== undefined) updateData.vatRate = input.vatRate;
+
+      // Recalculate line amount if quantity or price changed
+      const quantity = input.quantity ?? Number(existingLine.quantity);
+      const unitPrice = input.unitPrice ?? Number(existingLine.unitPrice);
+      updateData.amount = (quantity * unitPrice).toFixed(2);
+
+      const [updated] = await ctx.db
+        .update(invoiceLines)
+        .set(updateData)
+        .where(eq(invoiceLines.id, input.lineId))
+        .returning();
+
+      // Recalculate totals
+      await recalculateInvoiceTotals(ctx.db, input.invoiceId);
+
+      return updated;
+    }),
+
+  // Delete a line
+  deleteLine: workspaceProcedure
+    .input(z.object({ lineId: z.string(), invoiceId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const invoice = await ctx.db.query.invoices.findFirst({
+        where: and(
+          eq(invoices.id, input.invoiceId),
+          eq(invoices.workspaceId, ctx.workspaceId)
+        ),
+      });
+
+      if (!invoice) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      if (invoice.status !== "draft") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Kan endast redigera utkast",
+        });
+      }
+
+      await ctx.db
+        .delete(invoiceLines)
+        .where(
+          and(
+            eq(invoiceLines.id, input.lineId),
+            eq(invoiceLines.invoiceId, input.invoiceId)
+          )
+        );
+
+      // Recalculate totals
+      await recalculateInvoiceTotals(ctx.db, input.invoiceId);
+
+      return { success: true };
+    }),
+
+  // Reorder lines (drag and drop)
+  reorderLines: workspaceProcedure
+    .input(updateLineOrderSchema)
+    .mutation(async ({ ctx, input }) => {
+      const invoice = await ctx.db.query.invoices.findFirst({
+        where: and(
+          eq(invoices.id, input.invoiceId),
+          eq(invoices.workspaceId, ctx.workspaceId)
+        ),
+      });
+
+      if (!invoice) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      if (invoice.status !== "draft") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Kan endast redigera utkast",
+        });
+      }
+
+      // Update sortOrder for each line
+      for (let i = 0; i < input.lineIds.length; i++) {
+        await ctx.db
+          .update(invoiceLines)
+          .set({ sortOrder: i })
+          .where(
+            and(
+              eq(invoiceLines.id, input.lineIds[i]),
+              eq(invoiceLines.invoiceId, input.invoiceId)
+            )
+          );
+      }
+
+      return { success: true };
     }),
 
   delete: workspaceProcedure
@@ -236,13 +584,22 @@ export const invoicesRouter = router({
     }),
 
   markAsSent: workspaceProcedure
-    .input(z.object({ id: z.string() }))
+    .input(
+      z.object({
+        id: z.string(),
+        createVerification: z.boolean().default(false), // User prompted in UI
+      })
+    )
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.query.invoices.findFirst({
         where: and(
           eq(invoices.id, input.id),
           eq(invoices.workspaceId, ctx.workspaceId)
         ),
+        with: {
+          customer: true,
+          lines: true,
+        },
       });
 
       if (!existing) {
@@ -256,9 +613,155 @@ export const invoicesRouter = router({
         });
       }
 
+      let sentJournalEntryId: string | null = null;
+
+      // Create verification/journal entry if requested
+      if (input.createVerification) {
+        // Find the fiscal period for the invoice date
+        const period = await ctx.db.query.fiscalPeriods.findFirst({
+          where: and(
+            eq(fiscalPeriods.workspaceId, ctx.workspaceId),
+            lte(fiscalPeriods.startDate, existing.invoiceDate),
+            gte(fiscalPeriods.endDate, existing.invoiceDate)
+          ),
+        });
+
+        if (period) {
+          // Calculate breakdown for journal entry
+          const breakdown = calculateInvoiceBreakdown(existing.lines);
+
+          // Only create verification if there's actual revenue
+          if (breakdown.totalInclVat > 0) {
+            // Get next verification number for this period
+            const maxVerifResult = await ctx.db
+              .select({
+                maxNum: sql<number>`COALESCE(MAX(${journalEntries.verificationNumber}), 0)`,
+              })
+              .from(journalEntries)
+              .where(eq(journalEntries.fiscalPeriodId, period.id));
+
+            const nextVerifNumber = (maxVerifResult[0]?.maxNum || 0) + 1;
+
+            // Create the journal entry
+            const [entry] = await ctx.db
+              .insert(journalEntries)
+              .values({
+                workspaceId: ctx.workspaceId,
+                fiscalPeriodId: period.id,
+                verificationNumber: nextVerifNumber,
+                entryDate: existing.invoiceDate,
+                description: `Faktura #${existing.invoiceNumber} - ${existing.customer.name}`,
+                entryType: "inkomst",
+                sourceType: "invoice_sent",
+                createdBy: ctx.session!.session.userId,
+              })
+              .returning();
+
+            sentJournalEntryId = entry.id;
+
+            // Build journal entry lines
+            const entryLines: Array<{
+              journalEntryId: string;
+              accountNumber: number;
+              accountName: string;
+              debit: string | null;
+              credit: string | null;
+              description: string;
+              sortOrder: number;
+            }> = [];
+
+            let sortOrder = 0;
+
+            // Debit 1510 (Kundfordringar) with total amount incl VAT
+            entryLines.push({
+              journalEntryId: entry.id,
+              accountNumber: 1510,
+              accountName: "Kundfordringar",
+              debit: breakdown.totalInclVat.toFixed(2),
+              credit: null,
+              description: `Faktura #${existing.invoiceNumber}`,
+              sortOrder: sortOrder++,
+            });
+
+            // Credit 3010 (Försäljning tjänster) if there are services
+            if (breakdown.serviceAmount > 0) {
+              entryLines.push({
+                journalEntryId: entry.id,
+                accountNumber: 3010,
+                accountName: "Försäljning tjänster",
+                debit: null,
+                credit: breakdown.serviceAmount.toFixed(2),
+                description: "Tjänster",
+                sortOrder: sortOrder++,
+              });
+            }
+
+            // Credit 3040 (Försäljning varor) if there are goods
+            if (breakdown.goodsAmount > 0) {
+              entryLines.push({
+                journalEntryId: entry.id,
+                accountNumber: 3040,
+                accountName: "Försäljning varor",
+                debit: null,
+                credit: breakdown.goodsAmount.toFixed(2),
+                description: "Varor",
+                sortOrder: sortOrder++,
+              });
+            }
+
+            // Credit 2610 (Utgående moms 25%) if there's 25% VAT
+            if (breakdown.vat25 > 0) {
+              entryLines.push({
+                journalEntryId: entry.id,
+                accountNumber: 2610,
+                accountName: "Utgående moms 25%",
+                debit: null,
+                credit: breakdown.vat25.toFixed(2),
+                description: "Moms 25%",
+                sortOrder: sortOrder++,
+              });
+            }
+
+            // Credit 2620 (Utgående moms 12%) if there's 12% VAT
+            if (breakdown.vat12 > 0) {
+              entryLines.push({
+                journalEntryId: entry.id,
+                accountNumber: 2620,
+                accountName: "Utgående moms 12%",
+                debit: null,
+                credit: breakdown.vat12.toFixed(2),
+                description: "Moms 12%",
+                sortOrder: sortOrder++,
+              });
+            }
+
+            // Credit 2630 (Utgående moms 6%) if there's 6% VAT
+            if (breakdown.vat6 > 0) {
+              entryLines.push({
+                journalEntryId: entry.id,
+                accountNumber: 2630,
+                accountName: "Utgående moms 6%",
+                debit: null,
+                credit: breakdown.vat6.toFixed(2),
+                description: "Moms 6%",
+                sortOrder: sortOrder++,
+              });
+            }
+
+            // Insert all journal entry lines
+            await ctx.db.insert(journalEntryLines).values(entryLines);
+          }
+        }
+      }
+
       const [updated] = await ctx.db
         .update(invoices)
-        .set({ status: "sent", updatedAt: new Date() })
+        .set({
+          status: "sent",
+          sentAt: new Date(),
+          sentJournalEntryId,
+          updatedAt: new Date(),
+        })
         .where(eq(invoices.id, input.id))
         .returning();
 
@@ -266,24 +769,429 @@ export const invoicesRouter = router({
     }),
 
   markAsPaid: workspaceProcedure
-    .input(z.object({ id: z.string(), paidDate: z.string().date().optional() }))
+    .input(
+      z.object({
+        id: z.string(),
+        paidDate: z.string().date().optional(),
+        paidAmount: z.number().optional(), // Actual amount received
+        createVerification: z.boolean().default(false), // User prompted in UI
+      })
+    )
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.query.invoices.findFirst({
         where: and(
           eq(invoices.id, input.id),
           eq(invoices.workspaceId, ctx.workspaceId)
         ),
+        with: {
+          customer: true,
+          lines: true,
+        },
       });
 
       if (!existing) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
 
+      // Validate invoice is sent first
+      if (existing.status !== "sent") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: existing.status === "draft"
+            ? "Fakturan måste publiceras innan den kan markeras som betald"
+            : "Fakturan är redan betald",
+        });
+      }
+
+      const paidDate = input.paidDate || new Date().toISOString().split("T")[0];
+      const paidAmount = input.paidAmount ?? Number(existing.total);
+
+      let journalEntryId: string | null = null;
+
+      // Create verification/journal entry if requested
+      if (input.createVerification) {
+        // Find the fiscal period for this date
+        const period = await ctx.db.query.fiscalPeriods.findFirst({
+          where: and(
+            eq(fiscalPeriods.workspaceId, ctx.workspaceId),
+            lte(fiscalPeriods.startDate, paidDate),
+            gte(fiscalPeriods.endDate, paidDate)
+          ),
+        });
+
+        if (period) {
+          // Get next verification number for this period
+          const maxVerifResult = await ctx.db
+            .select({
+              maxNum: sql<number>`COALESCE(MAX(${journalEntries.verificationNumber}), 0)`,
+            })
+            .from(journalEntries)
+            .where(eq(journalEntries.fiscalPeriodId, period.id));
+
+          const nextVerifNumber = (maxVerifResult[0]?.maxNum || 0) + 1;
+
+          // Create the journal entry
+          const [entry] = await ctx.db
+            .insert(journalEntries)
+            .values({
+              workspaceId: ctx.workspaceId,
+              fiscalPeriodId: period.id,
+              verificationNumber: nextVerifNumber,
+              entryDate: paidDate,
+              description: `Betalning faktura #${existing.invoiceNumber} - ${existing.customer.name}`,
+              entryType: "inkomst",
+              sourceType: "invoice_payment",
+              createdBy: ctx.session!.session.userId,
+            })
+            .returning();
+
+          journalEntryId = entry.id;
+
+          // Create journal entry lines:
+          // Debit 1930 (Företagskonto) - the bank account
+          // Credit 1510 (Kundfordringar) - accounts receivable
+
+          await ctx.db.insert(journalEntryLines).values([
+            {
+              journalEntryId: entry.id,
+              accountNumber: 1930,
+              accountName: "Företagskonto",
+              debit: paidAmount.toFixed(2),
+              credit: null,
+              description: `Betalning faktura #${existing.invoiceNumber}`,
+              sortOrder: 0,
+            },
+            {
+              journalEntryId: entry.id,
+              accountNumber: 1510,
+              accountName: "Kundfordringar",
+              debit: null,
+              credit: paidAmount.toFixed(2),
+              description: `Faktura #${existing.invoiceNumber} betald`,
+              sortOrder: 1,
+            },
+          ]);
+        }
+      }
+
       const [updated] = await ctx.db
         .update(invoices)
         .set({
           status: "paid",
-          paidDate: input.paidDate || new Date().toISOString().split("T")[0],
+          paidDate,
+          paidAmount: paidAmount.toFixed(2),
+          journalEntryId,
+          updatedAt: new Date(),
+        })
+        .where(eq(invoices.id, input.id))
+        .returning();
+
+      return updated;
+    }),
+
+  // Create sent verification after the fact (if user skipped it initially)
+  createSentVerification: workspaceProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.query.invoices.findFirst({
+        where: and(
+          eq(invoices.id, input.id),
+          eq(invoices.workspaceId, ctx.workspaceId)
+        ),
+        with: {
+          customer: true,
+          lines: true,
+        },
+      });
+
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      // Must be sent (or paid) to create verification
+      if (existing.status === "draft") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Fakturan måste publiceras först",
+        });
+      }
+
+      // Cannot create duplicate verification
+      if (existing.sentJournalEntryId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Fakturan har redan en bokföringspost för publicering",
+        });
+      }
+
+      // Find the fiscal period for the invoice date
+      const period = await ctx.db.query.fiscalPeriods.findFirst({
+        where: and(
+          eq(fiscalPeriods.workspaceId, ctx.workspaceId),
+          lte(fiscalPeriods.startDate, existing.invoiceDate),
+          gte(fiscalPeriods.endDate, existing.invoiceDate)
+        ),
+      });
+
+      if (!period) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Ingen räkenskapsperiod hittades för fakturadatumet",
+        });
+      }
+
+      // Calculate breakdown for journal entry
+      const breakdown = calculateInvoiceBreakdown(existing.lines);
+
+      if (breakdown.totalInclVat <= 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Fakturan har inget belopp att bokföra",
+        });
+      }
+
+      // Get next verification number for this period
+      const maxVerifResult = await ctx.db
+        .select({
+          maxNum: sql<number>`COALESCE(MAX(${journalEntries.verificationNumber}), 0)`,
+        })
+        .from(journalEntries)
+        .where(eq(journalEntries.fiscalPeriodId, period.id));
+
+      const nextVerifNumber = (maxVerifResult[0]?.maxNum || 0) + 1;
+
+      // Create the journal entry
+      const [entry] = await ctx.db
+        .insert(journalEntries)
+        .values({
+          workspaceId: ctx.workspaceId,
+          fiscalPeriodId: period.id,
+          verificationNumber: nextVerifNumber,
+          entryDate: existing.invoiceDate,
+          description: `Faktura #${existing.invoiceNumber} - ${existing.customer.name}`,
+          entryType: "inkomst",
+          sourceType: "invoice_sent",
+          createdBy: ctx.session!.session.userId,
+        })
+        .returning();
+
+      // Build journal entry lines
+      const entryLines: Array<{
+        journalEntryId: string;
+        accountNumber: number;
+        accountName: string;
+        debit: string | null;
+        credit: string | null;
+        description: string;
+        sortOrder: number;
+      }> = [];
+
+      let sortOrder = 0;
+
+      // Debit 1510 (Kundfordringar) with total amount incl VAT
+      entryLines.push({
+        journalEntryId: entry.id,
+        accountNumber: 1510,
+        accountName: "Kundfordringar",
+        debit: breakdown.totalInclVat.toFixed(2),
+        credit: null,
+        description: `Faktura #${existing.invoiceNumber}`,
+        sortOrder: sortOrder++,
+      });
+
+      // Credit 3010 (Försäljning tjänster) if there are services
+      if (breakdown.serviceAmount > 0) {
+        entryLines.push({
+          journalEntryId: entry.id,
+          accountNumber: 3010,
+          accountName: "Försäljning tjänster",
+          debit: null,
+          credit: breakdown.serviceAmount.toFixed(2),
+          description: "Tjänster",
+          sortOrder: sortOrder++,
+        });
+      }
+
+      // Credit 3040 (Försäljning varor) if there are goods
+      if (breakdown.goodsAmount > 0) {
+        entryLines.push({
+          journalEntryId: entry.id,
+          accountNumber: 3040,
+          accountName: "Försäljning varor",
+          debit: null,
+          credit: breakdown.goodsAmount.toFixed(2),
+          description: "Varor",
+          sortOrder: sortOrder++,
+        });
+      }
+
+      // Credit 2610 (Utgående moms 25%) if there's 25% VAT
+      if (breakdown.vat25 > 0) {
+        entryLines.push({
+          journalEntryId: entry.id,
+          accountNumber: 2610,
+          accountName: "Utgående moms 25%",
+          debit: null,
+          credit: breakdown.vat25.toFixed(2),
+          description: "Moms 25%",
+          sortOrder: sortOrder++,
+        });
+      }
+
+      // Credit 2620 (Utgående moms 12%) if there's 12% VAT
+      if (breakdown.vat12 > 0) {
+        entryLines.push({
+          journalEntryId: entry.id,
+          accountNumber: 2620,
+          accountName: "Utgående moms 12%",
+          debit: null,
+          credit: breakdown.vat12.toFixed(2),
+          description: "Moms 12%",
+          sortOrder: sortOrder++,
+        });
+      }
+
+      // Credit 2630 (Utgående moms 6%) if there's 6% VAT
+      if (breakdown.vat6 > 0) {
+        entryLines.push({
+          journalEntryId: entry.id,
+          accountNumber: 2630,
+          accountName: "Utgående moms 6%",
+          debit: null,
+          credit: breakdown.vat6.toFixed(2),
+          description: "Moms 6%",
+          sortOrder: sortOrder++,
+        });
+      }
+
+      // Insert all journal entry lines
+      await ctx.db.insert(journalEntryLines).values(entryLines);
+
+      // Update invoice with sentJournalEntryId
+      const [updated] = await ctx.db
+        .update(invoices)
+        .set({
+          sentJournalEntryId: entry.id,
+          updatedAt: new Date(),
+        })
+        .where(eq(invoices.id, input.id))
+        .returning();
+
+      return updated;
+    }),
+
+  // Create paid verification after the fact (if user skipped it initially)
+  createPaidVerification: workspaceProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        paidAmount: z.number().optional(), // Override if different from paidAmount stored
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.query.invoices.findFirst({
+        where: and(
+          eq(invoices.id, input.id),
+          eq(invoices.workspaceId, ctx.workspaceId)
+        ),
+        with: {
+          customer: true,
+        },
+      });
+
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      // Must be paid to create payment verification
+      if (existing.status !== "paid") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Fakturan måste vara markerad som betald först",
+        });
+      }
+
+      // Cannot create duplicate verification
+      if (existing.journalEntryId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Fakturan har redan en bokföringspost för betalning",
+        });
+      }
+
+      const paidDate = existing.paidDate || new Date().toISOString().split("T")[0];
+      const paidAmount = input.paidAmount ?? Number(existing.paidAmount || existing.total);
+
+      // Find the fiscal period for this date
+      const period = await ctx.db.query.fiscalPeriods.findFirst({
+        where: and(
+          eq(fiscalPeriods.workspaceId, ctx.workspaceId),
+          lte(fiscalPeriods.startDate, paidDate),
+          gte(fiscalPeriods.endDate, paidDate)
+        ),
+      });
+
+      if (!period) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Ingen räkenskapsperiod hittades för betalningsdatumet",
+        });
+      }
+
+      // Get next verification number for this period
+      const maxVerifResult = await ctx.db
+        .select({
+          maxNum: sql<number>`COALESCE(MAX(${journalEntries.verificationNumber}), 0)`,
+        })
+        .from(journalEntries)
+        .where(eq(journalEntries.fiscalPeriodId, period.id));
+
+      const nextVerifNumber = (maxVerifResult[0]?.maxNum || 0) + 1;
+
+      // Create the journal entry
+      const [entry] = await ctx.db
+        .insert(journalEntries)
+        .values({
+          workspaceId: ctx.workspaceId,
+          fiscalPeriodId: period.id,
+          verificationNumber: nextVerifNumber,
+          entryDate: paidDate,
+          description: `Betalning faktura #${existing.invoiceNumber} - ${existing.customer.name}`,
+          entryType: "inkomst",
+          sourceType: "invoice_payment",
+          createdBy: ctx.session!.session.userId,
+        })
+        .returning();
+
+      // Create journal entry lines:
+      // Debit 1930 (Företagskonto) - the bank account
+      // Credit 1510 (Kundfordringar) - accounts receivable
+      await ctx.db.insert(journalEntryLines).values([
+        {
+          journalEntryId: entry.id,
+          accountNumber: 1930,
+          accountName: "Företagskonto",
+          debit: paidAmount.toFixed(2),
+          credit: null,
+          description: `Betalning faktura #${existing.invoiceNumber}`,
+          sortOrder: 0,
+        },
+        {
+          journalEntryId: entry.id,
+          accountNumber: 1510,
+          accountName: "Kundfordringar",
+          debit: null,
+          credit: paidAmount.toFixed(2),
+          description: `Faktura #${existing.invoiceNumber} betald`,
+          sortOrder: 1,
+        },
+      ]);
+
+      // Update invoice with journalEntryId
+      const [updated] = await ctx.db
+        .update(invoices)
+        .set({
+          journalEntryId: entry.id,
           updatedAt: new Date(),
         })
         .where(eq(invoices.id, input.id))

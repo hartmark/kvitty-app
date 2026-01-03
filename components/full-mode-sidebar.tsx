@@ -16,9 +16,10 @@ import {
   Lock,
   AddressBook,
   Invoice,
+  Package,
 } from "@phosphor-icons/react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { NavPeriods } from "@/components/nav-periods";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
@@ -79,6 +80,7 @@ export function FullModeSidebar({
   ...props
 }: FullModeSidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [addPeriodOpen, setAddPeriodOpen] = useState(false);
   const [addEntryOpen, setAddEntryOpen] = useState(false);
   const [bankExpanded, setBankExpanded] = useState(true);
@@ -160,6 +162,18 @@ export function FullModeSidebar({
                   <Link href={`/${workspace.slug}/fakturor`}>
                     <Invoice className="size-4" weight="duotone" />
                     <span>Fakturor</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === `/${workspace.slug}/produkter`}
+                  tooltip="Produkter"
+                >
+                  <Link href={`/${workspace.slug}/produkter`}>
+                    <Package className="size-4" weight="duotone" />
+                    <span>Produkter</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -300,10 +314,14 @@ export function FullModeSidebar({
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() => {
+                    onClick={async () => {
                       clearUserCookie();
-                      signOut().then(() => {
-                        window.location.href = "/";
+                      await signOut({
+                        fetchOptions: {
+                          onSuccess: () => {
+                            router.push("/login");
+                          },
+                        },
                       });
                     }}
                     className="text-red-600"

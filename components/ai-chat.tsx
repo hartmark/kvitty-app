@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { PaperPlaneRight, Robot, User, Sparkle, Check } from "@phosphor-icons/react";
+import { PaperPlaneRight, Robot, User, Check } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -93,11 +93,6 @@ export function AIChat({ onSuggestion, context, className }: AIChatProps) {
 
   return (
     <div className={cn("flex flex-col h-full", className)}>
-      <div className="flex items-center gap-2 px-4 py-3 border-b">
-        <Sparkle className="size-5 text-primary" weight="duotone" />
-        <h3 className="font-medium text-sm">AI Bokföringsassistent</h3>
-      </div>
-
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
           <div className="text-center text-muted-foreground text-sm py-8">

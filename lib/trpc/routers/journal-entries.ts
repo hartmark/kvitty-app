@@ -4,6 +4,7 @@ import { router, workspaceProcedure } from "../init";
 import {
   journalEntries,
   journalEntryLines,
+  journalEntryAttachments,
   lockedPeriods,
   auditLogs,
 } from "@/lib/db/schema";
@@ -381,5 +382,72 @@ export const journalEntriesRouter = router({
         total,
         hasMore: input.offset + input.limit < total,
       };
+    }),
+
+  // Add attachment to journal entry
+  addAttachment: workspaceProcedure
+    .input(
+      z.object({
+        journalEntryId: z.string(),
+        fileName: z.string(),
+        fileUrl: z.string(),
+        fileSize: z.number().optional(),
+        mimeType: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Verify the journal entry belongs to this workspace
+      const entry = await ctx.db.query.journalEntries.findFirst({
+        where: and(
+          eq(journalEntries.id, input.journalEntryId),
+          eq(journalEntries.workspaceId, ctx.workspaceId)
+        ),
+      });
+
+      if (!entry) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      const [attachment] = await ctx.db
+        .insert(journalEntryAttachments)
+        .values({
+          journalEntryId: input.journalEntryId,
+          fileName: input.fileName,
+          fileUrl: input.fileUrl,
+          fileSize: input.fileSize,
+          mimeType: input.mimeType,
+          createdBy: ctx.session.user.id,
+        })
+        .returning();
+
+      return attachment;
+    }),
+
+  // Delete attachment from journal entry
+  deleteAttachment: workspaceProcedure
+    .input(
+      z.object({
+        journalEntryId: z.string(),
+        attachmentId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Verify the journal entry belongs to this workspace
+      const entry = await ctx.db.query.journalEntries.findFirst({
+        where: and(
+          eq(journalEntries.id, input.journalEntryId),
+          eq(journalEntries.workspaceId, ctx.workspaceId)
+        ),
+      });
+
+      if (!entry) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      await ctx.db
+        .delete(journalEntryAttachments)
+        .where(eq(journalEntryAttachments.id, input.attachmentId));
+
+      return { success: true };
     }),
 });

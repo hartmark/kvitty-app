@@ -86,7 +86,9 @@ export function WorkspaceSwitcher({
             {workspaces.map((workspace) => (
               <DropdownMenuItem key={workspace.id} asChild>
                 <Link href={`/${workspace.slug}`}>
-                  <Receipt className="size-4" weight="duotone" />
+                  <div className="bg-sidebar-primary text-sidebar-primary-foreground! flex aspect-square size-8 items-center justify-center rounded-lg">
+                    <Receipt className="size-4" weight="duotone" />
+                  </div>
                   <div className="flex flex-col flex-1 min-w-0">
                     <span className="truncate font-medium">{workspace.name}</span>
                     {workspace.orgNumber && (

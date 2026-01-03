@@ -58,6 +58,35 @@ export const invoiceStatusEnum = pgEnum("invoice_status", [
   "sent",
   "paid",
 ]);
+
+export const productUnitEnum = pgEnum("product_unit", [
+  "styck",
+  "timmar",
+  "dagar",
+  "manader",
+  "kilogram",
+  "gram",
+  "liter",
+  "meter",
+  "centimeter",
+  "millimeter",
+  "m2",
+  "m3",
+  "mil",
+  "kilometer",
+  "ha",
+  "ton",
+  "ord",
+  "ar",
+  "veckor",
+  "minuter",
+  "MB",
+  "GB",
+]);
+
+export const productTypeEnum = pgEnum("product_type", ["V", "T"]); // V=Varor, T=Tjänster
+
+export const invoiceLineTypeEnum = pgEnum("invoice_line_type", ["product", "text"]);
 import { relations } from "drizzle-orm";
 
 // ============================================
@@ -313,6 +342,22 @@ export const journalEntryLines = pgTable("journal_entry_lines", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Journal entry attachments (underlag)
+export const journalEntryAttachments = pgTable("journal_entry_attachments", {
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
+  journalEntryId: text("journal_entry_id")
+    .notNull()
+    .references(() => journalEntries.id, { onDelete: "cascade" }),
+  fileName: text("file_name").notNull(),
+  fileUrl: text("file_url").notNull(), // Vercel Blob URL
+  fileSize: integer("file_size"),
+  mimeType: text("mime_type"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+});
+
 // Employees for payroll
 export const employees = pgTable(
   "employees",
@@ -421,12 +466,32 @@ export const customers = pgTable("customers", {
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
+  contactPerson: text("contact_person"), // Kontaktperson
   orgNumber: text("org_number"),
   email: text("email"),
   phone: text("phone"),
   address: text("address"),
   postalCode: text("postal_code"),
   city: text("city"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const products = pgTable("products", {
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
+  workspaceId: text("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), // Beskrivning
+  description: text("description"), // Extended description
+  defaultQuantity: decimal("default_quantity", { precision: 10, scale: 2 })
+    .notNull()
+    .default("1"),
+  unit: productUnitEnum("unit").notNull().default("styck"),
+  unitPrice: decimal("unit_price", { precision: 15, scale: 2 }).notNull(),
+  vatRate: integer("vat_rate").notNull().default(25), // 0, 6, 12, 25
+  type: productTypeEnum("type").notNull().default("T"), // V=Varor, T=Tjänster
+  isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -448,7 +513,11 @@ export const invoices = pgTable("invoices", {
   vatAmount: decimal("vat_amount", { precision: 15, scale: 2 }).notNull(),
   total: decimal("total", { precision: 15, scale: 2 }).notNull(),
   status: invoiceStatusEnum("status").default("draft").notNull(),
+  sentAt: timestamp("sent_at"), // When invoice was marked as sent
   paidDate: text("paid_date"),
+  paidAmount: decimal("paid_amount", { precision: 15, scale: 2 }), // Actual amount paid (for overpayment tracking)
+  sentJournalEntryId: text("sent_journal_entry_id").references(() => journalEntries.id), // Link to verification when sent (revenue recognition)
+  journalEntryId: text("journal_entry_id").references(() => journalEntries.id), // Link to verification when paid
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -458,10 +527,14 @@ export const invoiceLines = pgTable("invoice_lines", {
   invoiceId: text("invoice_id")
     .notNull()
     .references(() => invoices.id, { onDelete: "cascade" }),
+  productId: text("product_id").references(() => products.id, { onDelete: "set null" }),
+  lineType: invoiceLineTypeEnum("line_type").notNull().default("product"),
   description: text("description").notNull(),
   quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull().default("1"),
+  unit: productUnitEnum("unit"),
   unitPrice: decimal("unit_price", { precision: 15, scale: 2 }).notNull(),
   vatRate: integer("vat_rate").notNull().default(25), // 25, 12, 6, 0
+  productType: productTypeEnum("product_type"), // V=Varor, T=Tjänster (copied from product)
   amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
   sortOrder: integer("sort_order").default(0),
 });
@@ -515,6 +588,7 @@ export const workspacesRelations = relations(workspaces, ({ one, many }) => ({
   payrollRuns: many(payrollRuns),
   lockedPeriods: many(lockedPeriods),
   customers: many(customers),
+  products: many(products),
   invoices: many(invoices),
 }));
 
@@ -639,6 +713,7 @@ export const journalEntriesRelations = relations(
       fields: [journalEntries.fiscalPeriodId],
       references: [fiscalPeriods.id],
     }),
+    attachments: many(journalEntryAttachments),
     createdByUser: one(user, {
       fields: [journalEntries.createdBy],
       references: [user.id],
@@ -653,6 +728,20 @@ export const journalEntryLinesRelations = relations(
     journalEntry: one(journalEntries, {
       fields: [journalEntryLines.journalEntryId],
       references: [journalEntries.id],
+    }),
+  })
+);
+
+export const journalEntryAttachmentsRelations = relations(
+  journalEntryAttachments,
+  ({ one }) => ({
+    journalEntry: one(journalEntries, {
+      fields: [journalEntryAttachments.journalEntryId],
+      references: [journalEntries.id],
+    }),
+    createdByUser: one(user, {
+      fields: [journalEntryAttachments.createdBy],
+      references: [user.id],
     }),
   })
 );
@@ -722,6 +811,14 @@ export const customersRelations = relations(customers, ({ one, many }) => ({
   invoices: many(invoices),
 }));
 
+export const productsRelations = relations(products, ({ one, many }) => ({
+  workspace: one(workspaces, {
+    fields: [products.workspaceId],
+    references: [workspaces.id],
+  }),
+  invoiceLines: many(invoiceLines),
+}));
+
 export const invoicesRelations = relations(invoices, ({ one, many }) => ({
   workspace: one(workspaces, {
     fields: [invoices.workspaceId],
@@ -735,6 +832,14 @@ export const invoicesRelations = relations(invoices, ({ one, many }) => ({
     fields: [invoices.customerId],
     references: [customers.id],
   }),
+  sentJournalEntry: one(journalEntries, {
+    fields: [invoices.sentJournalEntryId],
+    references: [journalEntries.id],
+  }),
+  journalEntry: one(journalEntries, {
+    fields: [invoices.journalEntryId],
+    references: [journalEntries.id],
+  }),
   lines: many(invoiceLines),
 }));
 
@@ -742,6 +847,10 @@ export const invoiceLinesRelations = relations(invoiceLines, ({ one }) => ({
   invoice: one(invoices, {
     fields: [invoiceLines.invoiceId],
     references: [invoices.id],
+  }),
+  product: one(products, {
+    fields: [invoiceLines.productId],
+    references: [products.id],
   }),
 }));
 
@@ -782,9 +891,15 @@ export type FiscalYearType = (typeof fiscalYearTypeEnum.enumValues)[number];
 export type Customer = typeof customers.$inferSelect;
 export type NewCustomer = typeof customers.$inferInsert;
 
+export type Product = typeof products.$inferSelect;
+export type NewProduct = typeof products.$inferInsert;
+export type ProductUnit = (typeof productUnitEnum.enumValues)[number];
+export type ProductType = (typeof productTypeEnum.enumValues)[number];
+
 export type Invoice = typeof invoices.$inferSelect;
 export type NewInvoice = typeof invoices.$inferInsert;
 export type InvoiceStatus = (typeof invoiceStatusEnum.enumValues)[number];
 
 export type InvoiceLine = typeof invoiceLines.$inferSelect;
 export type NewInvoiceLine = typeof invoiceLines.$inferInsert;
+export type InvoiceLineType = (typeof invoiceLineTypeEnum.enumValues)[number];
