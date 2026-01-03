@@ -1215,27 +1215,40 @@ export const invoicesRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.db.query.invoices.findFirst({
-        where: and(
-          eq(invoices.id, input.id),
-          eq(invoices.workspaceId, ctx.workspaceId)
-        ),
-        with: {
-          customer: true,
-          lines: true,
-        },
-      });
-
-      if (!existing) {
-        throw new TRPCError({ code: "NOT_FOUND" });
-      }
-
-      if (existing.status !== "draft") {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Fakturan är redan skickad",
+      try {
+        const existing = await ctx.db.query.invoices.findFirst({
+          where: and(
+            eq(invoices.id, input.id),
+            eq(invoices.workspaceId, ctx.workspaceId)
+          ),
+          with: {
+            customer: true,
+            lines: true,
+          },
         });
-      }
+
+        if (!existing) {
+          console.error("[Invoice sendInvoice] Invoice not found", {
+            invoiceId: input.id,
+            workspaceId: ctx.workspaceId,
+            timestamp: new Date().toISOString(),
+          });
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+
+        if (existing.status !== "draft") {
+          console.error("[Invoice sendInvoice] Invoice already sent", {
+            invoiceId: input.id,
+            invoiceNumber: existing.invoiceNumber,
+            currentStatus: existing.status,
+            workspaceId: ctx.workspaceId,
+            timestamp: new Date().toISOString(),
+          });
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Fakturan är redan skickad",
+          });
+        }
 
       const workspace = await ctx.db.query.workspaces.findFirst({
         where: eq(workspaces.id, ctx.workspaceId),
@@ -1413,26 +1426,54 @@ export const invoicesRouter = router({
           });
         }
       } catch (error) {
+        console.error("[Invoice sendInvoice] Email sending failed", {
+          error: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
+          invoiceId: input.id,
+          invoiceNumber: existing.invoiceNumber,
+          workspaceId: ctx.workspaceId,
+          sendMethod: input.sendMethod,
+          recipientEmail: input.email,
+          timestamp: new Date().toISOString(),
+        });
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: error instanceof Error ? error.message : "Kunde inte skicka e-post",
         });
       }
 
-      const [updated] = await ctx.db
-        .update(invoices)
-        .set({
-          status: "sent",
-          sentAt: new Date(),
-          sentMethod: input.sendMethod === "pdf" ? "email_pdf" : "email_link",
-          shareToken,
-          sentJournalEntryId,
-          updatedAt: new Date(),
-        })
-        .where(eq(invoices.id, input.id))
-        .returning();
+        const [updated] = await ctx.db
+          .update(invoices)
+          .set({
+            status: "sent",
+            sentAt: new Date(),
+            sentMethod: input.sendMethod === "pdf" ? "email_pdf" : "email_link",
+            shareToken,
+            sentJournalEntryId,
+            updatedAt: new Date(),
+          })
+          .where(eq(invoices.id, input.id))
+          .returning();
 
-      return updated;
+        return updated;
+      } catch (error) {
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        console.error("[Invoice sendInvoice] Unexpected error", {
+          error: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
+          invoiceId: input.id,
+          workspaceId: ctx.workspaceId,
+          sendMethod: input.sendMethod,
+          recipientEmail: input.email,
+          timestamp: new Date().toISOString(),
+        });
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Ett oväntat fel uppstod vid skickande av faktura",
+        });
+      }
     }),
 
   getByToken: publicProcedure
@@ -1443,40 +1484,62 @@ export const invoicesRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const invoice = await ctx.db.query.invoices.findFirst({
-        where: and(
-          eq(invoices.id, input.invoiceId),
-          eq(invoices.shareToken, input.token)
-        ),
-        with: {
-          customer: true,
-          lines: {
-            orderBy: (l, { asc }) => [asc(l.sortOrder)],
-            with: {
-              product: true,
+      try {
+        const invoice = await ctx.db.query.invoices.findFirst({
+          where: and(
+            eq(invoices.id, input.invoiceId),
+            eq(invoices.shareToken, input.token)
+          ),
+          with: {
+            customer: true,
+            lines: {
+              orderBy: (l, { asc }) => [asc(l.sortOrder)],
+              with: {
+                product: true,
+              },
+            },
+            workspace: {
+              columns: {
+                id: true,
+                name: true,
+                orgName: true,
+                orgNumber: true,
+                address: true,
+                postalCode: true,
+                city: true,
+                contactEmail: true,
+                contactPhone: true,
+              },
             },
           },
-          workspace: {
-            columns: {
-              id: true,
-              name: true,
-              orgName: true,
-              orgNumber: true,
-              address: true,
-              postalCode: true,
-              city: true,
-              contactEmail: true,
-              contactPhone: true,
-            },
-          },
-        },
-      });
+        });
 
-      if (!invoice) {
-        throw new TRPCError({ code: "NOT_FOUND" });
+        if (!invoice) {
+          console.error("[Invoice getByToken] Invoice not found", {
+            invoiceId: input.invoiceId,
+            token: input.token.substring(0, 8) + "...",
+            timestamp: new Date().toISOString(),
+          });
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+
+        return invoice;
+      } catch (error) {
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        console.error("[Invoice getByToken] Database error", {
+          error: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
+          invoiceId: input.invoiceId,
+          token: input.token.substring(0, 8) + "...",
+          timestamp: new Date().toISOString(),
+        });
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Kunde inte hämta faktura",
+        });
       }
-
-      return invoice;
     }),
 
   trackOpen: publicProcedure
@@ -1490,39 +1553,63 @@ export const invoicesRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const invoice = await ctx.db.query.invoices.findFirst({
-        where: and(
-          eq(invoices.id, input.invoiceId),
-          eq(invoices.shareToken, input.token)
-        ),
-      });
+      try {
+        const invoice = await ctx.db.query.invoices.findFirst({
+          where: and(
+            eq(invoices.id, input.invoiceId),
+            eq(invoices.shareToken, input.token)
+          ),
+        });
 
-      if (!invoice) {
-        throw new TRPCError({ code: "NOT_FOUND" });
+        if (!invoice) {
+          console.error("[Invoice trackOpen] Invoice not found", {
+            invoiceId: input.invoiceId,
+            token: input.token.substring(0, 8) + "...",
+            ipAddress: input.ipAddress,
+            timestamp: new Date().toISOString(),
+          });
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+
+        const now = new Date();
+        const isFirstOpen = !invoice.openedAt;
+
+        // Insert log entry first
+        await ctx.db.insert(invoiceOpenLogs).values({
+          invoiceId: input.invoiceId,
+          ipAddress: input.ipAddress || null,
+          userAgent: input.userAgent || null,
+          referer: input.referer || null,
+        });
+
+        // Update invoice counters atomically to avoid race conditions
+        await ctx.db
+          .update(invoices)
+          .set({
+            openedAt: isFirstOpen ? now : invoice.openedAt,
+            openedCount: sql`${invoices.openedCount} + 1`, // Use SQL increment to avoid race conditions
+            lastOpenedAt: now,
+            updatedAt: now,
+          })
+          .where(eq(invoices.id, input.invoiceId));
+
+        return { success: true };
+      } catch (error) {
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        console.error("[Invoice trackOpen] Database error", {
+          error: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
+          invoiceId: input.invoiceId,
+          token: input.token.substring(0, 8) + "...",
+          ipAddress: input.ipAddress,
+          timestamp: new Date().toISOString(),
+        });
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Kunde inte spåra öppning",
+        });
       }
-
-      const now = new Date();
-      const isFirstOpen = !invoice.openedAt;
-
-      // Insert log entry first
-      await ctx.db.insert(invoiceOpenLogs).values({
-        invoiceId: input.invoiceId,
-        ipAddress: input.ipAddress || null,
-        userAgent: input.userAgent || null,
-        referer: input.referer || null,
-      });
-
-      // Update invoice counters atomically to avoid race conditions
-      await ctx.db
-        .update(invoices)
-        .set({
-          openedAt: isFirstOpen ? now : invoice.openedAt,
-          openedCount: sql`${invoices.openedCount} + 1`, // Use SQL increment to avoid race conditions
-          lastOpenedAt: now,
-          updatedAt: now,
-        })
-        .where(eq(invoices.id, input.invoiceId));
-
-      return { success: true };
     }),
 });

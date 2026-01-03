@@ -42,13 +42,24 @@ export default async function PublicInvoicePage({
     const userAgent = headersList.get("user-agent") || undefined;
     const referer = headersList.get("referer") || undefined;
 
-    await caller.invoices.trackOpen({
-      invoiceId,
-      token,
-      ipAddress,
-      userAgent,
-      referer,
-    });
+    try {
+      await caller.invoices.trackOpen({
+        invoiceId,
+        token,
+        ipAddress,
+        userAgent,
+        referer,
+      });
+    } catch (trackError) {
+      // Log tracking errors but don't fail the page render
+      console.error("[Invoice Tracking Error]", {
+        error: trackError instanceof Error ? trackError.message : String(trackError),
+        invoiceId,
+        token: token.substring(0, 8) + "...", // Log partial token for security
+        ipAddress,
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     return (
       <div className="container max-w-4xl mx-auto py-12 px-4">
@@ -217,6 +228,21 @@ export default async function PublicInvoicePage({
       </div>
     );
   } catch (error) {
+    // Log error details for debugging
+    console.error("[Public Invoice Page Error]", {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      invoiceId,
+      token: token ? token.substring(0, 8) + "..." : "missing",
+      timestamp: new Date().toISOString(),
+    });
+
+    // Only show notFound for NOT_FOUND errors, log others
+    if (error instanceof Error && error.message.includes("NOT_FOUND")) {
+      notFound();
+    }
+
+    // For other errors, still show notFound to user but log the actual error
     notFound();
   }
 }
