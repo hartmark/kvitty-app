@@ -25,7 +25,7 @@ export const ACCOUNT_RANGES = {
   EQUITY: { start: 2000, end: 2099 },
   UNTAXED_RESERVES: { start: 2100, end: 2199 },
   PROVISIONS: { start: 2200, end: 2299 },
-  LONG_TERM_LIABILITIES: { start: 2300, end: 2499 },
+  LONG_TERM_LIABILITIES: { start: 2300, end: 2399 },
   CURRENT_LIABILITIES: { start: 2400, end: 2999 },
   SUPPLIER_DEBTS: { start: 2400, end: 2499 },
   TAX_LIABILITIES: { start: 2500, end: 2599 },

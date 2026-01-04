@@ -14,6 +14,12 @@ import {
   isDebitAccount,
 } from "@/lib/utils/account-ranges";
 
+// Helper to get the last day of the month for a given date
+function getLastDayOfMonth(year: number, month: number): Date {
+  // Month is 0-indexed, so month+1 gives us next month, day 0 gives last day of current month
+  return new Date(year, month + 1, 0);
+}
+
 // Helper to get date range for VAT period
 function getVatPeriodDates(
   fiscalYearStart: string,
@@ -29,11 +35,19 @@ function getVatPeriodDates(
   }
 
   if (frequency === "quarterly") {
-    const quarterStart = new Date(startDate);
-    quarterStart.setMonth(startDate.getMonth() + periodIndex * 3);
-    const quarterEnd = new Date(quarterStart);
-    quarterEnd.setMonth(quarterEnd.getMonth() + 3);
-    quarterEnd.setDate(quarterEnd.getDate() - 1);
+    // Calculate quarter start: use first day of month to avoid rollover
+    const quarterStartMonth = startDate.getMonth() + periodIndex * 3;
+    const quarterStart = new Date(startDate.getFullYear(), quarterStartMonth, 1);
+    // Adjust year if month overflows
+    if (quarterStartMonth >= 12) {
+      quarterStart.setFullYear(startDate.getFullYear() + Math.floor(quarterStartMonth / 12));
+      quarterStart.setMonth(quarterStartMonth % 12);
+    }
+
+    // Quarter end: last day of the month that is 2 months after quarter start
+    const quarterEndMonth = quarterStartMonth + 2;
+    const quarterEndYear = startDate.getFullYear() + Math.floor(quarterEndMonth / 12);
+    const quarterEnd = getLastDayOfMonth(quarterEndYear, quarterEndMonth % 12);
 
     // Cap end date to fiscal year end for broken fiscal years
     const cappedEnd = quarterEnd > fiscalEnd ? fiscalEnd : quarterEnd;
@@ -45,11 +59,12 @@ function getVatPeriodDates(
   }
 
   // Monthly
-  const monthStart = new Date(startDate);
-  monthStart.setMonth(startDate.getMonth() + periodIndex);
-  const monthEnd = new Date(monthStart);
-  monthEnd.setMonth(monthEnd.getMonth() + 1);
-  monthEnd.setDate(monthEnd.getDate() - 1);
+  const monthStartMonth = startDate.getMonth() + periodIndex;
+  const monthStartYear = startDate.getFullYear() + Math.floor(monthStartMonth / 12);
+  const monthStart = new Date(monthStartYear, monthStartMonth % 12, 1);
+
+  // Month end: last day of the same month
+  const monthEnd = getLastDayOfMonth(monthStartYear, monthStartMonth % 12);
 
   // Cap end date to fiscal year end for broken fiscal years
   const cappedEnd = monthEnd > fiscalEnd ? fiscalEnd : monthEnd;

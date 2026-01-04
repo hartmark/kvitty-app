@@ -176,6 +176,7 @@ export const periodsRouter = router({
         });
       }
 
+      // Use conditional update with workspace filter for defense-in-depth
       const [updated] = await ctx.db
         .update(fiscalPeriods)
         .set({
@@ -184,8 +185,21 @@ export const periodsRouter = router({
           lockedBy: ctx.session.user.id,
           updatedAt: new Date(),
         })
-        .where(eq(fiscalPeriods.id, input.periodId))
+        .where(
+          and(
+            eq(fiscalPeriods.id, input.periodId),
+            eq(fiscalPeriods.workspaceId, ctx.workspaceId),
+            eq(fiscalPeriods.isLocked, false)
+          )
+        )
         .returning();
+
+      if (!updated) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Perioden låstes av någon annan, vänligen uppdatera",
+        });
+      }
 
       return updated;
     }),
