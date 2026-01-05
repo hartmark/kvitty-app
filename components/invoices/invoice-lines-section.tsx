@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -16,6 +15,8 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { Plus, TextT } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc/client";
 import { InvoiceLineRow } from "@/components/invoices/invoice-line-row";
 import type { InvoiceLine, Product } from "@/lib/db/schema";
@@ -29,6 +30,8 @@ interface InvoiceLinesSectionProps {
   invoiceId: string;
   lines: InvoiceLineWithProduct[];
   isDraft: boolean;
+  onAddProduct?: () => void;
+  onAddTextLine?: () => void;
 }
 
 export function InvoiceLinesSection({
@@ -36,6 +39,8 @@ export function InvoiceLinesSection({
   invoiceId,
   lines,
   isDraft,
+  onAddProduct,
+  onAddTextLine,
 }: InvoiceLinesSectionProps) {
   const utils = trpc.useUtils();
 
@@ -66,43 +71,46 @@ export function InvoiceLinesSection({
     }
   };
 
-  if (lines.length === 0) {
-    return (
-      <div className="text-center py-8 text-muted-foreground">
-        <p>Inga rader ännu</p>
-        <p className="text-sm mt-1">
-          Lägg till produkter eller textrader ovan
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-2">
-      {/* Header */}
-      <div className="grid grid-cols-[auto_1fr_80px_80px_80px_80px_100px_40px] gap-2 px-2 text-sm text-muted-foreground font-medium">
-        <div className="w-6" />
-        <div>Beskrivning</div>
-        <div className="text-right">Antal</div>
-        <div>Enhet</div>
-        <div className="text-right">Pris</div>
-        <div>Moms</div>
-        <div className="text-right">Belopp</div>
-        <div />
-      </div>
+      {lines.length > 0 && (
+        <>
+          {/* Header */}
+          <div className="grid grid-cols-[auto_1fr_80px_80px_80px_80px_100px_80px] gap-2 px-3 py-2 text-sm text-muted-foreground font-medium border-b">
+            <div className="w-6" />
+            <div>Beskrivning</div>
+            <div className="text-right">Antal</div>
+            <div>Enhet</div>
+            <div className="text-right">Pris</div>
+            <div>Moms</div>
+            <div className="text-right">Belopp</div>
+            <div />
+          </div>
 
-      {/* Lines */}
-      {isDraft ? (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={lines.map((l) => l.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            {lines.map((line) => (
+          {/* Lines */}
+          {isDraft ? (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={lines.map((l) => l.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {lines.map((line) => (
+                  <InvoiceLineRow
+                    key={line.id}
+                    line={line}
+                    workspaceId={workspaceId}
+                    invoiceId={invoiceId}
+                    isDraft={isDraft}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
+          ) : (
+            lines.map((line) => (
               <InvoiceLineRow
                 key={line.id}
                 line={line}
@@ -110,19 +118,45 @@ export function InvoiceLinesSection({
                 invoiceId={invoiceId}
                 isDraft={isDraft}
               />
-            ))}
-          </SortableContext>
-        </DndContext>
-      ) : (
-        lines.map((line) => (
-          <InvoiceLineRow
-            key={line.id}
-            line={line}
-            workspaceId={workspaceId}
-            invoiceId={invoiceId}
-            isDraft={isDraft}
-          />
-        ))
+            ))
+          )}
+        </>
+      )}
+
+      {/* Empty state or add buttons */}
+      {isDraft && (
+        <div className="pt-4 border-t">
+          {lines.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <p className="text-base font-medium mb-1">Inga rader ännu</p>
+              <p className="text-sm">
+                Lägg till produkter eller textrader nedan
+              </p>
+            </div>
+          ) : null}
+          <div className="flex gap-2">
+            {onAddProduct && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onAddProduct}
+              >
+                <Plus className="size-4 mr-2" />
+                Lägg till produkt
+              </Button>
+            )}
+            {onAddTextLine && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onAddTextLine}
+              >
+                <TextT className="size-4 mr-2" />
+                Ny textrad
+              </Button>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

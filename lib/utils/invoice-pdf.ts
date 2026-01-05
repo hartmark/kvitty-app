@@ -20,6 +20,9 @@ interface WorkspaceForPdf {
   bic?: string | null;
   swishNumber?: string | null;
   invoiceNotes?: string | null;
+  // Invoice settings defaults
+  paymentTermsDays?: number | null;
+  latePaymentInterest?: string | null;
 }
 
 interface InvoicePdfData {
@@ -204,18 +207,31 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
   doc.text(formatCurrency(parseFloat(invoice.total)) + " kr", pageWidth - margin - 2, y, { align: "right" });
 
   // Payment info section
-  const hasPaymentInfo = workspace.bankgiro || workspace.plusgiro || workspace.iban || workspace.swishNumber;
-  if (hasPaymentInfo) {
-    y += 15;
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(0);
-    doc.text("Betalningsinformation", margin, y);
+  y += 15;
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(0);
+  doc.text("Betalningsinformation", margin, y);
 
-    y += 6;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
+  y += 6;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
 
+  // Use invoice-specific payment method if set, otherwise show all workspace methods
+  if (invoice.paymentMethod && invoice.paymentAccount) {
+    const methodLabels: Record<string, string> = {
+      bankgiro: "Bankgiro",
+      plusgiro: "Plusgiro",
+      iban: "IBAN",
+      swish: "Swish",
+      paypal: "PayPal",
+      custom: "Betalning",
+    };
+    const label = methodLabels[invoice.paymentMethod] || "Betalning";
+    doc.text(`${label}: ${invoice.paymentAccount}`, margin, y);
+    y += 5;
+  } else {
+    // Show all available workspace payment methods
     if (workspace.bankgiro) {
       doc.text(`Bankgiro: ${workspace.bankgiro}`, margin, y);
       y += 5;
@@ -236,20 +252,26 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
       doc.text(ibanText, margin, y);
       y += 5;
     }
-
-    // Invoice reference
-    doc.text(`Märk betalningen med: Faktura ${invoice.invoiceNumber}`, margin, y);
   }
 
-  // Custom invoice notes
-  if (workspace.invoiceNotes) {
-    y = Math.max(y + 15, 250);
+  // Invoice reference with OCR number if available
+  if (invoice.ocrNumber) {
+    doc.text(`OCR-nummer: ${invoice.ocrNumber}`, margin, y);
+    y += 5;
+  }
+  doc.text(`Märk betalningen med: Faktura ${invoice.invoiceNumber}`, margin, y);
+  y += 5;
+
+  // Custom invoice notes (use invoice-specific notes or workspace default)
+  const notesToShow = invoice.customNotes || workspace.invoiceNotes;
+  if (notesToShow) {
+    y = Math.max(y + 10, 250);
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(80);
 
     // Word wrap the notes
-    const noteLines = doc.splitTextToSize(workspace.invoiceNotes, pageWidth - 2 * margin);
+    const noteLines = doc.splitTextToSize(notesToShow, pageWidth - 2 * margin);
     noteLines.forEach((line: string) => {
       if (y > 285) return; // Don't overflow page
       doc.text(line, margin, y);
@@ -257,13 +279,29 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
     });
   }
 
-  // Payment info footer
+  // Delivery terms if set
+  if (invoice.deliveryTerms) {
+    y = Math.max(y + 5, 265);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(80);
+    doc.text(`Leveransvillkor: ${invoice.deliveryTerms}`, pageWidth / 2, y, { align: "center" });
+  }
+
+  // Payment info footer with dynamic terms and late interest
   y = 275;
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100);
 
-  const footerText = `Betalningsvillkor: 30 dagar netto. Vid försenad betalning debiteras dröjsmålsränta enligt lag.`;
+  const paymentTerms = invoice.paymentTermsDays || workspace.paymentTermsDays || 30;
+  const lateInterest = invoice.latePaymentInterest
+    ? `${invoice.latePaymentInterest}% ränta`
+    : workspace.latePaymentInterest
+    ? `${workspace.latePaymentInterest}% ränta`
+    : "dröjsmålsränta enligt lag";
+
+  const footerText = `Betalningsvillkor: ${paymentTerms} dagar netto. Vid försenad betalning debiteras ${lateInterest}.`;
   doc.text(footerText, pageWidth / 2, y, { align: "center" });
 
 

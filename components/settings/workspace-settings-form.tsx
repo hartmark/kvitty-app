@@ -85,6 +85,10 @@ export function WorkspaceSettingsForm({
       swishNumber: workspace.swishNumber ?? "",
       paymentTermsDays: workspace.paymentTermsDays ?? 30,
       invoiceNotes: workspace.invoiceNotes ?? "",
+      deliveryTerms: workspace.deliveryTerms ?? "",
+      latePaymentInterest: workspace.latePaymentInterest ? Number(workspace.latePaymentInterest) : null,
+      defaultPaymentMethod: workspace.defaultPaymentMethod ?? "",
+      addOcrNumber: workspace.addOcrNumber ?? false,
     },
   });
 
@@ -113,6 +117,10 @@ export function WorkspaceSettingsForm({
           swishNumber: updated.swishNumber ?? "",
           paymentTermsDays: updated.paymentTermsDays ?? 30,
           invoiceNotes: updated.invoiceNotes ?? "",
+          deliveryTerms: updated.deliveryTerms ?? "",
+          latePaymentInterest: updated.latePaymentInterest ? Number(updated.latePaymentInterest) : null,
+          defaultPaymentMethod: updated.defaultPaymentMethod ?? "",
+          addOcrNumber: updated.addOcrNumber ?? false,
         });
         router.refresh();
       }
@@ -191,6 +199,22 @@ export function WorkspaceSettingsForm({
 
     if (data.invoiceNotes !== (workspace.invoiceNotes ?? "")) {
       payload.invoiceNotes = data.invoiceNotes || null;
+    }
+
+    if (data.deliveryTerms !== (workspace.deliveryTerms ?? "")) {
+      payload.deliveryTerms = data.deliveryTerms || null;
+    }
+
+    if (data.latePaymentInterest !== (workspace.latePaymentInterest ? Number(workspace.latePaymentInterest) : null)) {
+      payload.latePaymentInterest = data.latePaymentInterest;
+    }
+
+    if (data.defaultPaymentMethod !== (workspace.defaultPaymentMethod ?? "")) {
+      payload.defaultPaymentMethod = data.defaultPaymentMethod || null;
+    }
+
+    if (data.addOcrNumber !== (workspace.addOcrNumber ?? false)) {
+      payload.addOcrNumber = data.addOcrNumber;
     }
 
     updateMutation.mutate(payload);
@@ -738,6 +762,64 @@ export function WorkspaceSettingsForm({
                   </Field>
                 )}
               />
+              <div className="grid grid-cols-2 gap-4">
+                <Controller
+                  name="deliveryTerms"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="workspace-settings-deliveryTerms">
+                        Leveransvillkor (standard)
+                      </FieldLabel>
+                      <Input
+                        {...field}
+                        value={field.value ?? ""}
+                        id="workspace-settings-deliveryTerms"
+                        placeholder="T.ex. Fritt vårt lager"
+                        maxLength={200}
+                        disabled={isSubmitting}
+                        aria-invalid={fieldState.invalid}
+                      />
+                      <FieldDescription>
+                        Standardtext för leveransvillkor på fakturor
+                      </FieldDescription>
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
+                <Controller
+                  name="latePaymentInterest"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="workspace-settings-latePaymentInterest">
+                        Dröjsmålsränta (%)
+                      </FieldLabel>
+                      <Input
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                        id="workspace-settings-latePaymentInterest"
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.1}
+                        placeholder="12"
+                        disabled={isSubmitting}
+                        aria-invalid={fieldState.invalid}
+                      />
+                      <FieldDescription>
+                        Standard dröjsmålsränta vid försenad betalning
+                      </FieldDescription>
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
+              </div>
             </FieldGroup>
           </CardContent>
         </Card>

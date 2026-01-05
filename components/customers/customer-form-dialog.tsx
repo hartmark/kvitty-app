@@ -8,11 +8,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { trpc } from "@/lib/trpc/client";
 import type { Customer } from "@/lib/db/schema";
+import { deliveryMethods } from "@/lib/validations/invoice";
 
 interface CustomerFormDialogProps {
   workspaceId: string;
@@ -35,6 +43,8 @@ export function CustomerFormDialog({
   const [address, setAddress] = useState(customer?.address || "");
   const [postalCode, setPostalCode] = useState(customer?.postalCode || "");
   const [city, setCity] = useState(customer?.city || "");
+  const [preferredDeliveryMethod, setPreferredDeliveryMethod] = useState<string>(customer?.preferredDeliveryMethod || "");
+  const [einvoiceAddress, setEinvoiceAddress] = useState<string>(customer?.einvoiceAddress || "");
 
   const createCustomer = trpc.customers.create.useMutation({
     onSuccess: () => {
@@ -59,6 +69,8 @@ export function CustomerFormDialog({
     setAddress("");
     setPostalCode("");
     setCity("");
+    setPreferredDeliveryMethod("");
+    setEinvoiceAddress("");
   };
 
   useEffect(() => {
@@ -70,6 +82,8 @@ export function CustomerFormDialog({
       setAddress(customer.address || "");
       setPostalCode(customer.postalCode || "");
       setCity(customer.city || "");
+      setPreferredDeliveryMethod(customer.preferredDeliveryMethod || "");
+      setEinvoiceAddress(customer.einvoiceAddress || "");
     } else {
       resetForm();
     }
@@ -77,7 +91,17 @@ export function CustomerFormDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const data = { name, orgNumber, email, phone, address, postalCode, city };
+    const data = {
+      name,
+      orgNumber,
+      email,
+      phone,
+      address,
+      postalCode,
+      city,
+      preferredDeliveryMethod: (preferredDeliveryMethod as any) || null,
+      einvoiceAddress: einvoiceAddress || null,
+    };
 
     if (customer) {
       updateCustomer.mutate({ workspaceId, id: customer.id, ...data });
@@ -165,6 +189,49 @@ export function CustomerFormDialog({
                   disabled={isPending}
                 />
               </Field>
+            </div>
+            <div className="border-t pt-4 mt-4">
+              <h3 className="text-sm font-medium mb-3">Leveransinställningar</h3>
+              <Field>
+                <FieldLabel htmlFor="preferredDeliveryMethod">Föredragen leveransmetod</FieldLabel>
+                <Select value={preferredDeliveryMethod || "__none__"} onValueChange={(val) => setPreferredDeliveryMethod(val === "__none__" ? "" : val)}>
+                  <SelectTrigger id="preferredDeliveryMethod">
+                    <SelectValue placeholder="Välj leveransmetod" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Ingen förinställning</SelectItem>
+                    {deliveryMethods.map((method) => (
+                      <SelectItem key={method} value={method}>
+                        {method === "email_pdf"
+                          ? "E-post med PDF"
+                          : method === "email_link"
+                          ? "E-post med länk"
+                          : method === "manual"
+                          ? "Manuell hantering"
+                          : "E-faktura"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  Standard leveransmetod för fakturor till denna kund
+                </FieldDescription>
+              </Field>
+              {preferredDeliveryMethod === "e_invoice" && (
+                <Field>
+                  <FieldLabel htmlFor="einvoiceAddress">E-faktura-adress</FieldLabel>
+                  <Input
+                    id="einvoiceAddress"
+                    value={einvoiceAddress}
+                    onChange={(e) => setEinvoiceAddress(e.target.value)}
+                    placeholder="Peppol-ID eller e-faktura-adress"
+                    disabled={isPending}
+                  />
+                  <FieldDescription>
+                    Kundens Peppol-ID eller GLN för e-faktura
+                  </FieldDescription>
+                </Field>
+              )}
             </div>
             <div className="flex justify-end gap-2 pt-4">
               <Button

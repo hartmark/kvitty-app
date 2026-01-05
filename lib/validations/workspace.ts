@@ -65,6 +65,11 @@ export const updateWorkspaceSchema = z.object({
   swishNumber: z.string().max(20).optional().nullable(),
   paymentTermsDays: z.number().min(1).max(365).optional().nullable(),
   invoiceNotes: z.string().max(1000).optional().nullable(),
+  // Invoice defaults
+  deliveryTerms: z.string().max(200).optional().nullable(),
+  latePaymentInterest: z.number().min(0).max(100).optional().nullable(),
+  defaultPaymentMethod: z.string().max(50).optional().nullable(),
+  addOcrNumber: z.boolean().optional().nullable(),
 });
 
 export type CreateWorkspaceInput = z.infer<typeof createWorkspaceSchema>;

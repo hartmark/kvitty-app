@@ -18,6 +18,7 @@ import {
   updateInvoiceLineSchema,
   updateLineOrderSchema,
   updateInvoiceMetadataSchema,
+  updateInvoiceSettingsSchema,
 } from "@/lib/validations/invoice";
 import { sendInvoiceEmailWithPdf, sendInvoiceEmailWithLink } from "@/lib/email/send-invoice";
 import { sendReminderEmailWithPdf } from "@/lib/email/send-reminder";
@@ -120,6 +121,30 @@ function calculateInvoiceBreakdown(
   };
 }
 
+// Helper to calculate Luhn check digit for OCR numbers
+function calculateLuhnCheckDigit(number: string): number {
+  const digits = number.split('').reverse();
+  let sum = 0;
+
+  for (let i = 0; i < digits.length; i++) {
+    let digit = parseInt(digits[i]);
+    if (i % 2 === 0) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+  }
+
+  return (10 - (sum % 10)) % 10;
+}
+
+// Helper to generate OCR number with check digit from invoice number
+function generateOcrWithCheckDigit(invoiceNumber: number): string {
+  const base = invoiceNumber.toString().padStart(9, '0');
+  const checkDigit = calculateLuhnCheckDigit(base);
+  return `${base}${checkDigit}`;
+}
+
 export const invoicesRouter = router({
   list: workspaceProcedure
     .input(
@@ -207,6 +232,11 @@ export const invoicesRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Kund hittades inte" });
       }
 
+      // Get workspace defaults
+      const workspace = await ctx.db.query.workspaces.findFirst({
+        where: eq(workspaces.id, ctx.workspaceId),
+      });
+
       // Get next invoice number
       const result = await ctx.db
         .select({ maxNumber: sql<number>`COALESCE(MAX(${invoices.invoiceNumber}), 0)` })
@@ -215,7 +245,26 @@ export const invoicesRouter = router({
 
       const invoiceNumber = (result[0]?.maxNumber || 0) + 1;
 
+      // Generate OCR number if workspace has it enabled
+      let ocrNumber: string | null = null;
+      if (workspace?.addOcrNumber) {
+        const base = invoiceNumber.toString().padStart(9, '0');
+        const digits = base.split('').reverse();
+        let sum = 0;
+        for (let i = 0; i < digits.length; i++) {
+          let digit = parseInt(digits[i]);
+          if (i % 2 === 0) {
+            digit *= 2;
+            if (digit > 9) digit -= 9;
+          }
+          sum += digit;
+        }
+        const checkDigit = (10 - (sum % 10)) % 10;
+        ocrNumber = `${base}${checkDigit}`;
+      }
+
       // Create invoice with zero totals (will be updated when lines are added)
+      // Inherit defaults from workspace and customer
       const [invoice] = await ctx.db
         .insert(invoices)
         .values({
@@ -230,6 +279,14 @@ export const invoicesRouter = router({
           vatAmount: "0.00",
           total: "0.00",
           status: "draft",
+          // Inherit workspace defaults
+          deliveryTerms: workspace?.deliveryTerms || null,
+          latePaymentInterest: workspace?.latePaymentInterest || null,
+          paymentTermsDays: workspace?.paymentTermsDays || null,
+          paymentMethod: workspace?.defaultPaymentMethod || null,
+          ocrNumber,
+          // Inherit customer delivery preference
+          deliveryMethod: customer.preferredDeliveryMethod || null,
         })
         .returning();
 
@@ -365,6 +422,88 @@ export const invoicesRouter = router({
       return updated;
     }),
 
+  // Update invoice advanced settings
+  updateSettings: workspaceProcedure
+    .input(updateInvoiceSettingsSchema)
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.query.invoices.findFirst({
+        where: and(
+          eq(invoices.id, input.id),
+          eq(invoices.workspaceId, ctx.workspaceId)
+        ),
+      });
+
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      if (existing.status !== "draft") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Kan endast redigera inställningar för utkast",
+        });
+      }
+
+      const updateData: Record<string, unknown> = {
+        updatedAt: new Date(),
+      };
+
+      if (input.deliveryTerms !== undefined) updateData.deliveryTerms = input.deliveryTerms;
+      if (input.latePaymentInterest !== undefined) {
+        updateData.latePaymentInterest = input.latePaymentInterest !== null
+          ? input.latePaymentInterest.toFixed(2)
+          : null;
+      }
+      if (input.paymentTermsDays !== undefined) updateData.paymentTermsDays = input.paymentTermsDays;
+      if (input.paymentMethod !== undefined) updateData.paymentMethod = input.paymentMethod;
+      if (input.paymentAccount !== undefined) updateData.paymentAccount = input.paymentAccount;
+      if (input.ocrNumber !== undefined) updateData.ocrNumber = input.ocrNumber;
+      if (input.customNotes !== undefined) updateData.customNotes = input.customNotes;
+      if (input.deliveryMethod !== undefined) updateData.deliveryMethod = input.deliveryMethod;
+
+      const [updated] = await ctx.db
+        .update(invoices)
+        .set(updateData)
+        .where(eq(invoices.id, input.id))
+        .returning();
+
+      return updated;
+    }),
+
+  // Generate OCR number for invoice
+  generateOcrNumber: workspaceProcedure
+    .input(z.object({ invoiceId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const invoice = await ctx.db.query.invoices.findFirst({
+        where: and(
+          eq(invoices.id, input.invoiceId),
+          eq(invoices.workspaceId, ctx.workspaceId)
+        ),
+      });
+
+      if (!invoice) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      if (invoice.status !== "draft") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Kan endast generera OCR-nummer för utkast",
+        });
+      }
+
+      // Generate OCR number using invoice number + Luhn check digit
+      const ocrNumber = generateOcrWithCheckDigit(invoice.invoiceNumber);
+
+      const [updated] = await ctx.db
+        .update(invoices)
+        .set({ ocrNumber, updatedAt: new Date() })
+        .where(eq(invoices.id, input.invoiceId))
+        .returning();
+
+      return updated;
+    }),
+
   // Add a single line to invoice
   addLine: workspaceProcedure
     .input(addInvoiceLineSchema)
@@ -473,6 +612,7 @@ export const invoicesRouter = router({
       if (input.unit !== undefined) updateData.unit = input.unit;
       if (input.unitPrice !== undefined) updateData.unitPrice = input.unitPrice.toFixed(2);
       if (input.vatRate !== undefined) updateData.vatRate = input.vatRate;
+      if (input.productType !== undefined) updateData.productType = input.productType;
 
       // Recalculate line amount if quantity or price changed
       const quantity = input.quantity ?? Number(existingLine.quantity);

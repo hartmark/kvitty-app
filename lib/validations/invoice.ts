@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { productUnits } from "./product";
+import { productUnits, productTypes } from "./product";
 
 export const invoiceLineSchema = z.object({
   productId: z.string().optional(),
@@ -59,6 +59,7 @@ export const updateInvoiceLineSchema = z.object({
     .number()
     .refine((v) => [0, 6, 12, 25].includes(v), "Ogiltig momssats")
     .optional(),
+  productType: z.enum(productTypes).optional().nullable(),
 });
 
 // Schema for updating line order (drag and drop)
@@ -76,6 +77,52 @@ export const updateInvoiceMetadataSchema = z.object({
   reference: z.string().max(50).optional().nullable(),
 });
 
+// Payment methods
+export const paymentMethods = [
+  "bankgiro",
+  "plusgiro",
+  "iban",
+  "swish",
+  "paypal",
+  "custom",
+] as const;
+
+export type PaymentMethod = (typeof paymentMethods)[number];
+
+// Delivery methods
+export const deliveryMethods = [
+  "email_pdf",
+  "email_link",
+  "manual",
+  "e_invoice",
+] as const;
+
+export type DeliveryMethod = (typeof deliveryMethods)[number];
+
+// Schema for updating invoice advanced settings
+export const updateInvoiceSettingsSchema = z.object({
+  id: z.string(),
+  deliveryTerms: z.string().max(200).optional().nullable(),
+  latePaymentInterest: z
+    .number()
+    .min(0, "Ränta måste vara minst 0%")
+    .max(100, "Ränta kan inte överstiga 100%")
+    .optional()
+    .nullable(),
+  paymentTermsDays: z
+    .number()
+    .int("Betalningsvillkor måste vara ett heltal")
+    .min(1, "Betalningsvillkor måste vara minst 1 dag")
+    .max(365, "Betalningsvillkor kan inte överstiga 365 dagar")
+    .optional()
+    .nullable(),
+  paymentMethod: z.enum(paymentMethods).optional().nullable(),
+  paymentAccount: z.string().max(100).optional().nullable(),
+  ocrNumber: z.string().max(50).optional().nullable(),
+  customNotes: z.string().max(1000).optional().nullable(),
+  deliveryMethod: z.enum(deliveryMethods).optional().nullable(),
+});
+
 export type InvoiceLineInput = z.infer<typeof invoiceLineSchema>;
 export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;
 export type UpdateInvoiceInput = z.infer<typeof updateInvoiceSchema>;
@@ -83,3 +130,4 @@ export type AddInvoiceLineInput = z.infer<typeof addInvoiceLineSchema>;
 export type UpdateInvoiceLineInput = z.infer<typeof updateInvoiceLineSchema>;
 export type UpdateLineOrderInput = z.infer<typeof updateLineOrderSchema>;
 export type UpdateInvoiceMetadataInput = z.infer<typeof updateInvoiceMetadataSchema>;
+export type UpdateInvoiceSettingsInput = z.infer<typeof updateInvoiceSettingsSchema>;

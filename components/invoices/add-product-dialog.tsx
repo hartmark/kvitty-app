@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MagnifyingGlass, Package } from "@phosphor-icons/react";
+import { MagnifyingGlass, Package, Plus } from "@phosphor-icons/react";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { trpc } from "@/lib/trpc/client";
 import { unitLabels, productTypeLabels } from "@/lib/validations/product";
 import type { Product } from "@/lib/db/schema";
@@ -67,22 +72,48 @@ export function AddProductDialog({
     });
   };
 
+  const handleAddEmptyProduct = () => {
+    addLine.mutate({
+      workspaceId,
+      invoiceId,
+      lineType: "product",
+      description: "Ny produkt",
+      quantity: 1,
+      unit: "styck",
+      unitPrice: 0,
+      vatRate: 25,
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+      <DialogContent className="min-w-xl max-h-[60vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Lägg till produkt</DialogTitle>
         </DialogHeader>
 
-        <div className="relative">
+        <div className="relative flex items-center gap-2">
           <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Sök produkt..."
-            className="pl-10"
+            className="pl-10 flex-1"
             autoFocus
           />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleAddEmptyProduct}
+                disabled={addLine.isPending}
+              >
+                <Plus className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Lägg till tom rad</TooltipContent>
+          </Tooltip>
         </div>
 
         <div className="flex-1 overflow-auto min-h-0 -mx-6 px-6">

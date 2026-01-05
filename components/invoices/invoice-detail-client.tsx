@@ -9,9 +9,8 @@ import {
   PaperPlaneTilt,
   Check,
   Trash,
-  Plus,
-  TextT,
   Bell,
+  GearSix,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +25,8 @@ import { InvoiceTotals } from "@/components/invoices/invoice-totals";
 import { AddProductDialog } from "@/components/invoices/add-product-dialog";
 import { SendInvoiceDialog } from "@/components/invoices/send-invoice-dialog";
 import { SendReminderDialog } from "@/components/invoices/send-reminder-dialog";
+import { EditInvoiceMetadataDialog } from "@/components/invoices/edit-invoice-metadata-dialog";
+import { EditInvoiceSettingsDialog } from "@/components/invoices/edit-invoice-settings-dialog";
 
 interface InvoiceDetailClientProps {
   invoiceId: string;
@@ -38,6 +39,8 @@ export function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientProps) {
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [sendInvoiceOpen, setSendInvoiceOpen] = useState(false);
   const [sendReminderOpen, setSendReminderOpen] = useState(false);
+  const [editMetadataOpen, setEditMetadataOpen] = useState(false);
+  const [editSettingsOpen, setEditSettingsOpen] = useState(false);
 
   const { data: invoice, isLoading } = trpc.invoices.get.useQuery({
     workspaceId: workspace.id,
@@ -110,17 +113,17 @@ export function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientProps) {
   const isOverdue = invoice.status === "sent" && invoice.dueDate < today;
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl mx-auto">
+    <div className="p-6 space-y-6 min-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button asChild variant="ghost" size="icon">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4 flex-1 min-w-0">
+          <Button asChild variant="ghost" size="icon" className="shrink-0">
             <Link href={`/${workspace.slug}/fakturor`}>
               <ArrowLeft className="size-4" />
             </Link>
           </Button>
-          <div>
-            <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl font-semibold">
                 Faktura #{invoice.invoiceNumber}
               </h1>
@@ -140,21 +143,25 @@ export function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientProps) {
                   : "Betald"}
               </Badge>
             </div>
-            <p className="text-muted-foreground">{invoice.customer.name}</p>
+            <p className="text-muted-foreground mt-1">{invoice.customer.name}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <Button variant="outline" onClick={handleDownloadPdf}>
             <FilePdf className="size-4 mr-2" />
             Ladda ner PDF
           </Button>
           {isDraft && (
-            <Button
-              onClick={() => setSendInvoiceOpen(true)}
-            >
-              <PaperPlaneTilt className="size-4 mr-2" />
-              Skicka faktura
-            </Button>
+            <>
+              <Button variant="outline" onClick={() => setEditSettingsOpen(true)}>
+                <GearSix className="size-4 mr-2" />
+                Inställningar
+              </Button>
+              <Button onClick={() => setSendInvoiceOpen(true)}>
+                <PaperPlaneTilt className="size-4 mr-2" />
+                Skicka faktura
+              </Button>
+            </>
           )}
           {invoice.status === "sent" && (
             <Button
@@ -179,7 +186,7 @@ export function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="text-red-600"
+              className="text-red-600 hover:text-red-700"
               onClick={() => {
                 if (confirm("Är du säker på att du vill ta bort denna faktura?")) {
                   deleteInvoice.mutate({ workspaceId: workspace.id, id: invoiceId });
@@ -193,33 +200,17 @@ export function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientProps) {
       </div>
 
       {/* Metadata Section */}
-      <InvoiceMetadataSection invoice={invoice} isDraft={isDraft} />
+      <InvoiceMetadataSection
+        invoice={invoice}
+        workspace={workspace}
+        isDraft={isDraft}
+        onEdit={() => setEditMetadataOpen(true)}
+      />
 
       {/* Lines Section */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader>
           <CardTitle>Rader</CardTitle>
-          {isDraft && (
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setAddProductOpen(true)}
-              >
-                <Plus className="size-4 mr-2" />
-                Lägg till produkt
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleAddTextLine}
-                disabled={addTextLine.isPending}
-              >
-                <TextT className="size-4 mr-2" />
-                Ny textrad
-              </Button>
-            </div>
-          )}
         </CardHeader>
         <CardContent>
           <InvoiceLinesSection
@@ -227,6 +218,8 @@ export function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientProps) {
             invoiceId={invoiceId}
             lines={invoice.lines}
             isDraft={isDraft}
+            onAddProduct={isDraft ? () => setAddProductOpen(true) : undefined}
+            onAddTextLine={isDraft ? handleAddTextLine : undefined}
           />
         </CardContent>
       </Card>
@@ -267,6 +260,21 @@ export function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientProps) {
         customerEmail={invoice.customer.email}
         total={invoice.total}
         dueDate={invoice.dueDate}
+      />
+
+      {/* Edit Metadata Dialog */}
+      <EditInvoiceMetadataDialog
+        open={editMetadataOpen}
+        onOpenChange={setEditMetadataOpen}
+        invoice={invoice}
+      />
+
+      {/* Edit Settings Dialog */}
+      <EditInvoiceSettingsDialog
+        open={editSettingsOpen}
+        onOpenChange={setEditSettingsOpen}
+        invoice={invoice}
+        workspace={workspace}
       />
     </div>
   );

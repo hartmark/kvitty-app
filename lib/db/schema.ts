@@ -208,6 +208,11 @@ export const workspaces = pgTable("workspaces", {
   swishNumber: text("swish_number"), // For Swish payments
   paymentTermsDays: integer("payment_terms_days").default(30),
   invoiceNotes: text("invoice_notes"), // Default footer text for invoices
+  // Invoice advanced settings defaults
+  deliveryTerms: text("delivery_terms"), // Default delivery terms (e.g., "Fritt vårt lager")
+  latePaymentInterest: decimal("late_payment_interest", { precision: 5, scale: 2 }), // Default late payment interest %
+  defaultPaymentMethod: text("default_payment_method"), // Default: "bankgiro" | "plusgiro" | "iban" | "swish" | "paypal" | "custom"
+  addOcrNumber: boolean("add_ocr_number").default(false), // Auto-generate OCR numbers
   vatReportingFrequency: vatReportingFrequencyEnum("vat_reporting_frequency").default("quarterly"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -574,6 +579,9 @@ export const customers = pgTable("customers", {
   address: text("address"),
   postalCode: text("postal_code"),
   city: text("city"),
+  // Delivery preferences
+  preferredDeliveryMethod: text("preferred_delivery_method"), // "email_pdf" | "email_link" | "manual" | "e_invoice"
+  einvoiceAddress: text("einvoice_address"), // Peppol ID or similar for e-invoicing
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -628,6 +636,15 @@ export const invoices = pgTable("invoices", {
   emailSentCount: integer("email_sent_count").default(0).notNull(),
   lastReminderSentAt: timestamp("last_reminder_sent_at"),
   reminderCount: integer("reminder_count").default(0).notNull(),
+  // Advanced invoice settings (overrides workspace defaults)
+  deliveryTerms: text("delivery_terms"), // Override workspace deliveryTerms
+  latePaymentInterest: decimal("late_payment_interest", { precision: 5, scale: 2 }), // Override workspace late interest %
+  paymentTermsDays: integer("payment_terms_days"), // Override workspace paymentTermsDays
+  paymentMethod: text("payment_method"), // Override: "bankgiro" | "plusgiro" | "iban" | "swish" | "paypal" | "custom"
+  paymentAccount: text("payment_account"), // Account number for selected payment method
+  ocrNumber: text("ocr_number"), // OCR payment reference number
+  customNotes: text("custom_notes"), // Override workspace invoiceNotes
+  deliveryMethod: text("delivery_method"), // Override customer preferredDeliveryMethod
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
