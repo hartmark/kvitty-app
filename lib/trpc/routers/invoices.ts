@@ -125,17 +125,23 @@ export const invoicesRouter = router({
     .input(
       z.object({
         status: z.enum(["draft", "sent", "paid"]).optional(),
+        customerId: z.string().optional(),
         limit: z.number().min(1).max(100).default(50),
       })
     )
     .query(async ({ ctx, input }) => {
+      const conditions = [eq(invoices.workspaceId, ctx.workspaceId)];
+      
+      if (input.status) {
+        conditions.push(eq(invoices.status, input.status));
+      }
+      
+      if (input.customerId) {
+        conditions.push(eq(invoices.customerId, input.customerId));
+      }
+
       const invoiceList = await ctx.db.query.invoices.findMany({
-        where: input.status
-          ? and(
-              eq(invoices.workspaceId, ctx.workspaceId),
-              eq(invoices.status, input.status)
-            )
-          : eq(invoices.workspaceId, ctx.workspaceId),
+        where: conditions.length > 1 ? and(...conditions) : conditions[0],
         with: {
           customer: true,
           lines: {

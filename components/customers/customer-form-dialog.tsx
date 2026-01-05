@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -61,7 +61,7 @@ export function CustomerFormDialog({
     setCity("");
   };
 
-  useState(() => {
+  useEffect(() => {
     if (customer) {
       setName(customer.name);
       setOrgNumber(customer.orgNumber || "");
@@ -70,8 +70,10 @@ export function CustomerFormDialog({
       setAddress(customer.address || "");
       setPostalCode(customer.postalCode || "");
       setCity(customer.city || "");
+    } else {
+      resetForm();
     }
-  });
+  }, [customer]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +90,7 @@ export function CustomerFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{customer ? "Redigera kund" : "Ny kund"}</DialogTitle>
         </DialogHeader>

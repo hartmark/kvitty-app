@@ -27,7 +27,7 @@ export async function generateMetadata({
     where: eq(workspaces.slug, workspaceSlug),
   });
   return {
-    title: workspace ? `${workspace.name} — Kvitty` : "Oversikt — Kvitty",
+    title: workspace ? `${workspace.name} — Kvitty` : "Översikt — Kvitty",
   };
 }
 
@@ -205,7 +205,7 @@ export default async function WorkspaceDashboardPage({
       <div className="flex flex-1 flex-col gap-8 p-6 pt-0">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{workspace.name}</h1>
-          <p className="text-muted-foreground text-sm">Oversikt</p>
+          <p className="text-muted-foreground text-sm">Översikt</p>
         </div>
 
         {/* Metrics Row */}

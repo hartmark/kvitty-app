@@ -231,45 +231,45 @@ export function InvoicesTable({
                       <DotsThree className="size-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="min-w-48">
                     <DropdownMenuItem asChild>
-                      <Link href={`/${workspaceSlug}/fakturor/${invoice.id}`}>
+                      <Link href={`/${workspaceSlug}/fakturor/${invoice.id}`} className="whitespace-nowrap">
                         <Eye className="size-4 mr-2" />
                         Visa faktura
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onDownloadPdf(invoice.id)}>
+                    <DropdownMenuItem onClick={() => onDownloadPdf(invoice.id)} className="whitespace-nowrap">
                       <FilePdf className="size-4 mr-2" />
                       Ladda ner PDF
                     </DropdownMenuItem>
                     {invoice.status === "draft" && (
-                      <DropdownMenuItem onClick={() => onMarkAsSent(invoice.id)}>
+                      <DropdownMenuItem onClick={() => onMarkAsSent(invoice.id)} className="whitespace-nowrap">
                         <PaperPlaneTilt className="size-4 mr-2" />
                         Markera som skickad
                       </DropdownMenuItem>
                     )}
                     {invoice.status === "sent" && (
-                      <DropdownMenuItem onClick={() => onMarkAsPaid(invoice.id)}>
+                      <DropdownMenuItem onClick={() => onMarkAsPaid(invoice.id)} className="whitespace-nowrap">
                         <Check className="size-4 mr-2" />
                         Markera som betald
                       </DropdownMenuItem>
                     )}
                     {/* Send reminder for overdue invoices */}
                     {displayStatus === "overdue" && onSendReminder && (
-                      <DropdownMenuItem onClick={() => onSendReminder(invoice)}>
+                      <DropdownMenuItem onClick={() => onSendReminder(invoice)} className="whitespace-nowrap">
                         <Bell className="size-4 mr-2" />
                         Skicka påminnelse
                       </DropdownMenuItem>
                     )}
                     {/* Bokför nu actions for missing verifications */}
                     {needsSentVerification(invoice) && onCreateSentVerification && (
-                      <DropdownMenuItem onClick={() => onCreateSentVerification(invoice.id)}>
+                      <DropdownMenuItem onClick={() => onCreateSentVerification(invoice.id)} className="whitespace-nowrap">
                         <BookOpen className="size-4 mr-2" />
                         Bokför intäkt
                       </DropdownMenuItem>
                     )}
                     {needsPaidVerification(invoice) && onCreatePaidVerification && (
-                      <DropdownMenuItem onClick={() => onCreatePaidVerification(invoice.id)}>
+                      <DropdownMenuItem onClick={() => onCreatePaidVerification(invoice.id)} className="whitespace-nowrap">
                         <BookOpen className="size-4 mr-2" />
                         Bokför betalning
                       </DropdownMenuItem>
@@ -278,7 +278,7 @@ export function InvoicesTable({
                       <>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                          className="text-red-600"
+                          className="text-red-600 whitespace-nowrap"
                           onClick={() => onDelete(invoice.id)}
                         >
                           <Trash className="size-4 mr-2" />

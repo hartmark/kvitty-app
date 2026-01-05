@@ -28,18 +28,20 @@ interface CreateInvoiceDialogProps {
   workspaceId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialCustomerId?: string;
 }
 
 export function CreateInvoiceDialog({
   workspaceId,
   open,
   onOpenChange,
+  initialCustomerId,
 }: CreateInvoiceDialogProps) {
   const router = useRouter();
   const { workspace } = useWorkspace();
   const utils = trpc.useUtils();
 
-  const [customerId, setCustomerId] = useState("");
+  const [customerId, setCustomerId] = useState(initialCustomerId || "");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [dueDate, setDueDate] = useState(() => {
     const date = new Date();
@@ -61,7 +63,7 @@ export function CreateInvoiceDialog({
   });
 
   const resetForm = () => {
-    setCustomerId("");
+    setCustomerId(initialCustomerId || "");
     setInvoiceDate(new Date().toISOString().split("T")[0]);
     const date = new Date();
     date.setDate(date.getDate() + 30);
@@ -74,6 +76,12 @@ export function CreateInvoiceDialog({
       resetForm();
     }
   }, [open]);
+
+  useEffect(() => {
+    if (initialCustomerId && open) {
+      setCustomerId(initialCustomerId);
+    }
+  }, [initialCustomerId, open]);
 
   const handleCustomerCreated = (newCustomerId: string) => {
     setCustomerId(newCustomerId);

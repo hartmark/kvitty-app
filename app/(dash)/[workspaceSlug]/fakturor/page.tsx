@@ -5,6 +5,19 @@ export const metadata: Metadata = {
   title: "Fakturor — Kvitty",
 };
 
-export default async function InvoicesPage() {
-  return <InvoicesPageClient />;
+interface InvoicesPageProps {
+  searchParams: Promise<{
+    customerId?: string;
+    newInvoice?: string;
+  }>;
+}
+
+export default async function InvoicesPage({ searchParams }: InvoicesPageProps) {
+  const params = await searchParams;
+  return (
+    <InvoicesPageClient
+      initialCustomerId={params.customerId}
+      initialCreateOpen={params.newInvoice === "true"}
+    />
+  );
 }
