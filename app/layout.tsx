@@ -8,6 +8,13 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 export const metadata: Metadata = {
   title: "Kvitty - Bokföring för småföretag",
   description: "Enkel bokföring för små team",
+  openGraph: {
+    images: ["/assets/SCR-20260105-mywx.png"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/assets/SCR-20260105-mywx.png"],
+  },
 };
 
 export default function RootLayout({
