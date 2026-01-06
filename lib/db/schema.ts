@@ -285,6 +285,7 @@ export const inboxEmails = pgTable("inbox_emails", {
     .references(() => workspaces.id, { onDelete: "cascade" }),
   fromEmail: text("from_email").notNull(),
   subject: text("subject"),
+  emailBody: text("email_body"),
   receivedAt: timestamp("received_at").notNull(),
   processedAt: timestamp("processed_at"),
   status: inboxEmailStatusEnum("status").default("pending").notNull(),

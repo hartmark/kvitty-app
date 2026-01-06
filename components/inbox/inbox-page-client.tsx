@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc/client";
 import { useWorkspace } from "@/components/workspace-provider";
-import { InboxEmailCard } from "./inbox-email-card";
+import { InboxTable } from "./inbox-table";
 import type { InboxEmailStatusValue } from "@/lib/validations/inbox";
 
 type StatusFilter = InboxEmailStatusValue | "all";
@@ -131,18 +131,14 @@ export function InboxPageClient() {
             </>
           )}
         </div>
-      ) : (
-        <div className="space-y-4">
-          {emails?.map((email) => (
-            <InboxEmailCard
-              key={email.id}
-              email={email}
-              workspaceId={workspace.id}
-              workspaceMode={workspace.mode}
-            />
-          ))}
-        </div>
-      )}
+      ) : emails ? (
+        <InboxTable
+          data={emails}
+          workspaceId={workspace.id}
+          workspaceMode={workspace.mode}
+          hasFilters={statusFilter !== "all"}
+        />
+      ) : null}
     </div>
   );
 }
