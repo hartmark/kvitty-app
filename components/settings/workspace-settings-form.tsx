@@ -15,6 +15,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from "@/components/ui/input-group";
+import {
   Field,
   FieldGroup,
   FieldLabel,
@@ -607,23 +613,22 @@ export function WorkspaceSettingsForm({
             <FieldGroup>
               <Field data-invalid={!!errors.inboxEmailSlug}>
                 <FieldLabel htmlFor="inboxEmailSlug">Inkorgsadress</FieldLabel>
-                <div className="flex items-center gap-1">
-                  <Input
+                <InputGroup>
+                  <InputGroupInput
                     id="inboxEmailSlug"
                     placeholder={workspace.name.toLowerCase().replace(/[^a-z0-9]/g, "")}
                     maxLength={30}
                     disabled={isSubmitting}
-                    className="w-40"
                     {...register("inboxEmailSlug", {
                       onChange: (e) => {
                         e.target.value = e.target.value.toLowerCase().replace(/[^a-z0-9]/g, "");
                       },
                     })}
                   />
-                  <span className="text-muted-foreground whitespace-nowrap">
-                    .{workspace.slug}@inbox.kvitty.se
-                  </span>
-                </div>
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupText>.{workspace.slug}@inbox.kvitty.se</InputGroupText>
+                  </InputGroupAddon>
+                </InputGroup>
                 <FieldDescription>
                   {form.watch("inboxEmailSlug") ? (
                     <>

@@ -73,7 +73,11 @@ export default async function MembersPage({
         <MembersList workspaceId={workspace.id} currentUserId={session?.user?.id} />
         <PendingInvites workspaceId={workspace.id} />
         <InviteForm workspaceId={workspace.id} workspaceSlug={workspaceSlug} />
-        <AllowedEmailsSection workspaceId={workspace.id} />
+        <AllowedEmailsSection
+          workspaceId={workspace.id}
+          workspaceSlug={workspace.slug}
+          inboxEmailSlug={workspace.inboxEmailSlug}
+        />
       </div>
     </>
   );
