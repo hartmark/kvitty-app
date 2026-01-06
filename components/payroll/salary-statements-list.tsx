@@ -89,17 +89,17 @@ export function SalaryStatementsList({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Anställd</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Genererat</TableHead>
-              <TableHead>Skickat</TableHead>
-              <TableHead className="text-right">Åtgärder</TableHead>
+              <TableHead className="px-4">Anställd</TableHead>
+              <TableHead className="px-4">Status</TableHead>
+              <TableHead className="px-4">Genererat</TableHead>
+              <TableHead className="px-4">Skickat</TableHead>
+              <TableHead className="px-4 text-right">Åtgärder</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {statements.map((item) => (
               <TableRow key={item.payrollEntryId}>
-                <TableCell>
+                <TableCell className="px-4">
                   <div>
                     <div className="font-medium">{item.employeeName}</div>
                     {item.employeeEmail && (
@@ -109,7 +109,7 @@ export function SalaryStatementsList({
                     )}
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="px-4">
                   {item.statement ? (
                     <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800">
                       <Check className="size-3 mr-1" />
@@ -122,12 +122,12 @@ export function SalaryStatementsList({
                     </Badge>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell className="px-4">
                   {item.statement?.createdAt
                     ? formatDate(item.statement.createdAt)
                     : "-"}
                 </TableCell>
-                <TableCell>
+                <TableCell className="px-4">
                   {item.statement?.sentAt ? (
                     <div>
                       <div className="text-sm">{formatDate(item.statement.sentAt)}</div>
@@ -141,7 +141,7 @@ export function SalaryStatementsList({
                     <span className="text-muted-foreground">-</span>
                   )}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="px-4 text-right">
                   <div className="flex justify-end gap-2">
                     {item.statement?.pdfUrl ? (
                       <>

@@ -61,35 +61,35 @@ export function PayrollRunEntriesTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Anställd</TableHead>
-          <TableHead className="text-right">Bruttolön</TableHead>
-          <TableHead className="text-right">Skatteavdrag</TableHead>
-          <TableHead className="text-right">Arb.avg</TableHead>
-          <TableHead className="text-right">Nettolön</TableHead>
-          {isDraft && <TableHead className="w-[50px]"></TableHead>}
-          {showSalaryStatementActions && <TableHead className="w-[50px]"></TableHead>}
+          <TableHead className="px-4">Anställd</TableHead>
+          <TableHead className="px-4 text-right">Bruttolön</TableHead>
+          <TableHead className="px-4 text-right">Skatteavdrag</TableHead>
+          <TableHead className="px-4 text-right">Arb.avg</TableHead>
+          <TableHead className="px-4 text-right">Nettolön</TableHead>
+          {isDraft && <TableHead className="px-4 w-[50px]"></TableHead>}
+          {showSalaryStatementActions && <TableHead className="px-4 w-[50px]"></TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
         {entries.map((entry) => (
           <TableRow key={entry.id}>
-            <TableCell className="font-medium">
+            <TableCell className="px-4 font-medium">
               {entry.employee.firstName} {entry.employee.lastName}
             </TableCell>
-            <TableCell className="text-right font-mono">
+            <TableCell className="px-4 text-right font-mono">
               {formatCurrency(entry.grossSalary)}
             </TableCell>
-            <TableCell className="text-right font-mono">
+            <TableCell className="px-4 text-right font-mono">
               {formatCurrency(entry.taxDeduction)}
             </TableCell>
-            <TableCell className="text-right font-mono">
+            <TableCell className="px-4 text-right font-mono">
               {formatCurrency(entry.employerContributions)}
             </TableCell>
-            <TableCell className="text-right font-mono">
+            <TableCell className="px-4 text-right font-mono">
               {formatCurrency(entry.netSalary)}
             </TableCell>
             {isDraft && (
-              <TableCell>
+              <TableCell className="px-4">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -102,7 +102,7 @@ export function PayrollRunEntriesTable({
               </TableCell>
             )}
             {showSalaryStatementActions && onGenerateSalaryStatement && (
-              <TableCell>
+              <TableCell className="px-4">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button

@@ -79,29 +79,29 @@ export function PendingInvites({ workspaceId }: PendingInvitesProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>E-postadress</TableHead>
-              <TableHead>Skickad av</TableHead>
-              <TableHead>Skapad</TableHead>
-              <TableHead>Upphör</TableHead>
-              <TableHead className="text-right">Åtgärder</TableHead>
+              <TableHead className="px-4">E-postadress</TableHead>
+              <TableHead className="px-4">Skickad av</TableHead>
+              <TableHead className="px-4">Skapad</TableHead>
+              <TableHead className="px-4">Upphör</TableHead>
+              <TableHead className="px-4 text-right">Åtgärder</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {invites.map((invite) => (
               <TableRow key={invite.id}>
-                <TableCell className="font-medium">{invite.email}</TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="px-4 font-medium">{invite.email}</TableCell>
+                <TableCell className="px-4 text-muted-foreground">
                   {invite.createdBy}
                 </TableCell>
-                <TableCell>
+                <TableCell className="px-4">
                   {new Date(invite.createdAt).toLocaleDateString("sv-SE")}
                 </TableCell>
-                <TableCell>
+                <TableCell className="px-4">
                   {invite.expiresAt
                     ? new Date(invite.expiresAt).toLocaleDateString("sv-SE")
                     : "—"}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="px-4 text-right">
                   <div className="flex justify-end gap-2">
                     <Button
                       variant="outline"

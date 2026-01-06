@@ -132,37 +132,37 @@ export function PersonalDetailClient({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Period</TableHead>
-                <TableHead>Körning</TableHead>
-                <TableHead>Utbetalningsdatum</TableHead>
-                <TableHead className="text-right">Bruttolön</TableHead>
-                <TableHead className="text-right">Skatteavdrag</TableHead>
-                <TableHead className="text-right">Arb.avg</TableHead>
-                <TableHead className="text-right">Nettolön</TableHead>
-                <TableHead className="w-[100px]"></TableHead>
+                <TableHead className="px-4">Period</TableHead>
+                <TableHead className="px-4">Körning</TableHead>
+                <TableHead className="px-4">Utbetalningsdatum</TableHead>
+                <TableHead className="px-4 text-right">Bruttolön</TableHead>
+                <TableHead className="px-4 text-right">Skatteavdrag</TableHead>
+                <TableHead className="px-4 text-right">Arb.avg</TableHead>
+                <TableHead className="px-4 text-right">Nettolön</TableHead>
+                <TableHead className="px-4 w-[100px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {entries.map((entry) => (
                 <TableRow key={entry.id}>
-                  <TableCell className="font-medium">
+                  <TableCell className="px-4 font-medium">
                     {formatPeriod(entry.payrollRun.period)}
                   </TableCell>
-                  <TableCell>Körning {entry.payrollRun.runNumber}</TableCell>
-                  <TableCell>{entry.payrollRun.paymentDate}</TableCell>
-                  <TableCell className="text-right font-mono">
+                  <TableCell className="px-4">Körning {entry.payrollRun.runNumber}</TableCell>
+                  <TableCell className="px-4">{entry.payrollRun.paymentDate}</TableCell>
+                  <TableCell className="px-4 text-right font-mono">
                     {formatCurrency(entry.grossSalary)}
                   </TableCell>
-                  <TableCell className="text-right font-mono">
+                  <TableCell className="px-4 text-right font-mono">
                     {formatCurrency(entry.taxDeduction)}
                   </TableCell>
-                  <TableCell className="text-right font-mono">
+                  <TableCell className="px-4 text-right font-mono">
                     {formatCurrency(entry.employerContributions)}
                   </TableCell>
-                  <TableCell className="text-right font-mono">
+                  <TableCell className="px-4 text-right font-mono">
                     {formatCurrency(entry.netSalary)}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="px-4">
                     <Link
                       href={`/${workspaceSlug}/personal/lon/${entry.payrollRun.id}`}
                     >

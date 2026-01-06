@@ -37,18 +37,18 @@ export function EmployeesTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Namn</TableHead>
-          <TableHead>Personnummer</TableHead>
-          <TableHead>E-post</TableHead>
-          <TableHead>Telefon</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="w-[100px]"></TableHead>
+          <TableHead className="px-4">Namn</TableHead>
+          <TableHead className="px-4">Personnummer</TableHead>
+          <TableHead className="px-4">E-post</TableHead>
+          <TableHead className="px-4">Telefon</TableHead>
+          <TableHead className="px-4">Status</TableHead>
+          <TableHead className="px-4 w-[100px]"></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {employees.map((employee) => (
           <TableRow key={employee.id}>
-            <TableCell className="font-medium">
+            <TableCell className="px-4 font-medium">
               <Link
                 href={`/${workspaceSlug}/personal/${employee.id}`}
                 className="hover:underline"
@@ -56,14 +56,14 @@ export function EmployeesTable({
                 {employee.firstName} {employee.lastName}
               </Link>
             </TableCell>
-            <TableCell className="font-mono text-sm">
+            <TableCell className="px-4 font-mono text-sm">
               {employee.personalNumber}
               {(() => {
                 const age = calculateAgeFromPersonnummer(employee.personalNumber);
                 return age !== null ? ` (${age} år)` : null;
               })()}
             </TableCell>
-            <TableCell>
+            <TableCell className="px-4">
               {employee.email ? (
                 <div className="flex items-center gap-2">
                   {employee.email}
@@ -78,7 +78,7 @@ export function EmployeesTable({
                 "-"
               )}
             </TableCell>
-            <TableCell>
+            <TableCell className="px-4">
               {employee.phone ? (
                 <div className="flex items-center gap-2">
                   {employee.phone}
@@ -93,7 +93,7 @@ export function EmployeesTable({
                 "-"
               )}
             </TableCell>
-            <TableCell>
+            <TableCell className="px-4">
               {employee.isActive ? (
                 <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                   Aktiv
@@ -104,7 +104,7 @@ export function EmployeesTable({
                 </Badge>
               )}
             </TableCell>
-            <TableCell>
+            <TableCell className="px-4">
               <Link href={`/${workspaceSlug}/personal/${employee.id}`}>
                 <Button variant="ghost" size="icon">
                   <ArrowRight className="size-4" />

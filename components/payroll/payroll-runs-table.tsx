@@ -48,13 +48,13 @@ export function PayrollRunsTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Period</TableHead>
-          <TableHead>Körning</TableHead>
-          <TableHead>Utbetalningsdatum</TableHead>
-          <TableHead className="text-right">Bruttolön</TableHead>
-          <TableHead className="text-right">Arbetsgivaravgift</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="w-[100px]"></TableHead>
+          <TableHead className="px-4">Period</TableHead>
+          <TableHead className="px-4">Körning</TableHead>
+          <TableHead className="px-4">Utbetalningsdatum</TableHead>
+          <TableHead className="px-4 text-right">Bruttolön</TableHead>
+          <TableHead className="px-4 text-right">Arbetsgivaravgift</TableHead>
+          <TableHead className="px-4">Status</TableHead>
+          <TableHead className="px-4 w-[100px]"></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -62,23 +62,23 @@ export function PayrollRunsTable({
           const status = statusLabels[run.status] || statusLabels.draft;
           return (
             <TableRow key={run.id}>
-              <TableCell className="font-medium">
+              <TableCell className="px-4 font-medium">
                 {run.period.substring(0, 4)}-{run.period.substring(4)}
               </TableCell>
-              <TableCell>Körning {run.runNumber}</TableCell>
-              <TableCell>{run.paymentDate}</TableCell>
-              <TableCell className="text-right font-mono">
+              <TableCell className="px-4">Körning {run.runNumber}</TableCell>
+              <TableCell className="px-4">{run.paymentDate}</TableCell>
+              <TableCell className="px-4 text-right font-mono">
                 {formatCurrency(run.totalGrossSalary)}
               </TableCell>
-              <TableCell className="text-right font-mono">
+              <TableCell className="px-4 text-right font-mono">
                 {formatCurrency(run.totalEmployerContributions)}
               </TableCell>
-              <TableCell>
+              <TableCell className="px-4">
                 <Badge variant="outline" className={status.color}>
                   {status.label}
                 </Badge>
               </TableCell>
-              <TableCell>
+              <TableCell className="px-4">
                 <Link href={`/${workspaceSlug}/personal/lon/${run.id}`}>
                   <Button variant="ghost" size="sm">
                     Öppna

@@ -46,15 +46,15 @@ export function MembersList({ workspaceId, currentUserId }: MembersListProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Namn</TableHead>
-                <TableHead>E-post</TableHead>
-                <TableHead>Gick med</TableHead>
+                <TableHead className="px-4">Namn</TableHead>
+                <TableHead className="px-4">E-post</TableHead>
+                <TableHead className="px-4">Gick med</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {members.map((member) => (
                 <TableRow key={member.id}>
-                  <TableCell className="font-medium">
+                  <TableCell className="px-4 font-medium">
                     <div className="flex items-center gap-2">
                       {member.name || "—"}
                       {member.userId === currentUserId && (
@@ -62,8 +62,8 @@ export function MembersList({ workspaceId, currentUserId }: MembersListProps) {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>{member.email}</TableCell>
-                  <TableCell>
+                  <TableCell className="px-4">{member.email}</TableCell>
+                  <TableCell className="px-4">
                     {new Date(member.joinedAt).toLocaleDateString("sv-SE")}
                   </TableCell>
                 </TableRow>

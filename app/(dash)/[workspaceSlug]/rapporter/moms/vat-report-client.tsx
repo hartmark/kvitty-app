@@ -199,32 +199,32 @@ export function VatReportClient({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Momssats</TableHead>
-                      <TableHead className="text-right">Belopp</TableHead>
+                      <TableHead className="px-4">Momssats</TableHead>
+                      <TableHead className="px-4 text-right">Belopp</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     <TableRow>
-                      <TableCell>Moms 25%</TableCell>
-                      <TableCell className="text-right font-mono">
+                      <TableCell className="px-4">Moms 25%</TableCell>
+                      <TableCell className="px-4 text-right font-mono">
                         {formatCurrency(vatReport.outputVat.vat25)}
                       </TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell>Moms 12%</TableCell>
-                      <TableCell className="text-right font-mono">
+                      <TableCell className="px-4">Moms 12%</TableCell>
+                      <TableCell className="px-4 text-right font-mono">
                         {formatCurrency(vatReport.outputVat.vat12)}
                       </TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell>Moms 6%</TableCell>
-                      <TableCell className="text-right font-mono">
+                      <TableCell className="px-4">Moms 6%</TableCell>
+                      <TableCell className="px-4 text-right font-mono">
                         {formatCurrency(vatReport.outputVat.vat6)}
                       </TableCell>
                     </TableRow>
                     <TableRow className="font-medium border-t-2">
-                      <TableCell>Summa utgående moms</TableCell>
-                      <TableCell className="text-right font-mono">
+                      <TableCell className="px-4">Summa utgående moms</TableCell>
+                      <TableCell className="px-4 text-right font-mono">
                         {formatCurrency(vatReport.outputVat.total)}
                       </TableCell>
                     </TableRow>
@@ -241,20 +241,20 @@ export function VatReportClient({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Beskrivning</TableHead>
-                      <TableHead className="text-right">Belopp</TableHead>
+                      <TableHead className="px-4">Beskrivning</TableHead>
+                      <TableHead className="px-4 text-right">Belopp</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     <TableRow>
-                      <TableCell>Ingående moms inköp</TableCell>
-                      <TableCell className="text-right font-mono">
+                      <TableCell className="px-4">Ingående moms inköp</TableCell>
+                      <TableCell className="px-4 text-right font-mono">
                         {formatCurrency(vatReport.inputVat)}
                       </TableCell>
                     </TableRow>
                     <TableRow className="font-medium border-t-2">
-                      <TableCell>Summa ingående moms</TableCell>
-                      <TableCell className="text-right font-mono">
+                      <TableCell className="px-4">Summa ingående moms</TableCell>
+                      <TableCell className="px-4 text-right font-mono">
                         {formatCurrency(vatReport.inputVat)}
                       </TableCell>
                     </TableRow>
@@ -273,29 +273,29 @@ export function VatReportClient({
               <Table>
                 <TableBody>
                   <TableRow>
-                    <TableCell className="font-medium">
+                    <TableCell className="px-4 font-medium">
                       Utgående moms
                     </TableCell>
-                    <TableCell className="text-right font-mono">
+                    <TableCell className="px-4 text-right font-mono">
                       {formatCurrency(vatReport.outputVat.total)}
                     </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell className="font-medium">
+                    <TableCell className="px-4 font-medium">
                       Ingående moms (avdrag)
                     </TableCell>
-                    <TableCell className="text-right font-mono text-green-600">
+                    <TableCell className="px-4 text-right font-mono text-green-600">
                       - {formatCurrency(vatReport.inputVat)}
                     </TableCell>
                   </TableRow>
                   <TableRow className="text-lg font-bold border-t-2">
-                    <TableCell>
+                    <TableCell className="px-4">
                       {vatReport.netVat >= 0
                         ? "Moms att betala"
                         : "Moms att få tillbaka"}
                     </TableCell>
                     <TableCell
-                      className={`text-right font-mono ${
+                      className={`px-4 text-right font-mono ${
                         vatReport.netVat >= 0 ? "text-red-600" : "text-green-600"
                       }`}
                     >

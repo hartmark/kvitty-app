@@ -53,9 +53,9 @@ export function ReportTable({
     <Table>
       <TableHeader>
         <TableRow>
-          {showAccountNumbers && <TableHead className="w-[100px]">Konto</TableHead>}
-          <TableHead>Beskrivning</TableHead>
-          <TableHead className="text-right w-[150px]">Belopp</TableHead>
+          {showAccountNumbers && <TableHead className="px-4 w-[100px]">Konto</TableHead>}
+          <TableHead className="px-4">Beskrivning</TableHead>
+          <TableHead className="px-4 text-right w-[150px]">Belopp</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -63,22 +63,23 @@ export function ReportTable({
           <Fragment key={groupIndex}>
             {/* Group header */}
             <TableRow className="bg-muted/30">
-              {showAccountNumbers && <TableCell />}
-              <TableCell className="font-semibold">{group.name}</TableCell>
-              <TableCell />
+              {showAccountNumbers && <TableCell className="px-4" />}
+              <TableCell className="px-4 font-semibold">{group.name}</TableCell>
+              <TableCell className="px-4" />
             </TableRow>
 
             {/* Group rows */}
             {group.rows.map((row, rowIndex) => (
               <TableRow key={rowIndex}>
                 {showAccountNumbers && (
-                  <TableCell className="font-mono text-muted-foreground">
+                  <TableCell className="px-4 font-mono text-muted-foreground">
                     {row.accountNumber}
                   </TableCell>
                 )}
                 <TableCell
                   style={{ paddingLeft: row.indent ? `${row.indent}rem` : undefined }}
                   className={cn(
+                    "px-4",
                     row.isSubtotal && "font-medium",
                     row.isTotal && "font-bold"
                   )}
@@ -87,7 +88,7 @@ export function ReportTable({
                 </TableCell>
                 <TableCell
                   className={cn(
-                    "text-right font-mono",
+                    "px-4 text-right font-mono",
                     row.amount < 0 && "text-red-600",
                     row.isSubtotal && "font-medium",
                     row.isTotal && "font-bold"
@@ -101,13 +102,13 @@ export function ReportTable({
             {/* Group subtotal */}
             {group.rows.length > 0 && (
               <TableRow className="border-t-2">
-                {showAccountNumbers && <TableCell />}
-                <TableCell className="font-medium">
+                {showAccountNumbers && <TableCell className="px-4" />}
+                <TableCell className="px-4 font-medium">
                   Summa {group.name.toLowerCase()}
                 </TableCell>
                 <TableCell
                   className={cn(
-                    "text-right font-mono font-medium",
+                    "px-4 text-right font-mono font-medium",
                     group.subtotal < 0 && "text-red-600"
                   )}
                 >
@@ -121,11 +122,11 @@ export function ReportTable({
         {/* Total row */}
         {totalLabel && total !== undefined && (
           <TableRow className="bg-muted border-t-4">
-            {showAccountNumbers && <TableCell />}
-            <TableCell className="font-bold text-lg">{totalLabel}</TableCell>
+            {showAccountNumbers && <TableCell className="px-4" />}
+            <TableCell className="px-4 font-bold text-lg">{totalLabel}</TableCell>
             <TableCell
               className={cn(
-                "text-right font-mono font-bold text-lg",
+                "px-4 text-right font-mono font-bold text-lg",
                 total < 0 && "text-red-600"
               )}
             >

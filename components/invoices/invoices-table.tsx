@@ -133,15 +133,15 @@ export function InvoicesTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-24">Fakturanr</TableHead>
-          <TableHead>Kund</TableHead>
-          <TableHead>Kontaktperson</TableHead>
-          <TableHead className="text-right">Belopp (inkl moms)</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="w-20">Bokförd</TableHead>
-          <TableHead>Fakturadatum</TableHead>
-          <TableHead>Förfallodatum</TableHead>
-          <TableHead className="w-12" />
+          <TableHead className="px-4 w-24">Fakturanr</TableHead>
+          <TableHead className="px-4">Kund</TableHead>
+          <TableHead className="px-4">Kontaktperson</TableHead>
+          <TableHead className="px-4 text-right">Belopp (inkl moms)</TableHead>
+          <TableHead className="px-4">Status</TableHead>
+          <TableHead className="px-4 w-20">Bokförd</TableHead>
+          <TableHead className="px-4">Fakturadatum</TableHead>
+          <TableHead className="px-4">Förfallodatum</TableHead>
+          <TableHead className="px-4 w-12" />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -150,7 +150,7 @@ export function InvoicesTable({
 
           return (
             <TableRow key={invoice.id} className="cursor-pointer hover:bg-muted/50">
-              <TableCell>
+              <TableCell className="px-4">
                 <Link
                   href={`/${workspaceSlug}/fakturor/${invoice.id}`}
                   className="font-mono hover:underline"
@@ -158,7 +158,7 @@ export function InvoicesTable({
                   {invoice.invoiceNumber}
                 </Link>
               </TableCell>
-              <TableCell>
+              <TableCell className="px-4">
                 <Link
                   href={`/${workspaceSlug}/fakturor/${invoice.id}`}
                   className="hover:underline"
@@ -166,18 +166,18 @@ export function InvoicesTable({
                   {invoice.customer.name}
                 </Link>
               </TableCell>
-              <TableCell className="text-muted-foreground">
+              <TableCell className="px-4 text-muted-foreground">
                 {invoice.customer.contactPerson || "-"}
               </TableCell>
-              <TableCell className="text-right font-mono">
+              <TableCell className="px-4 text-right font-mono">
                 {formatCurrency(invoice.total)}
               </TableCell>
-              <TableCell>
+              <TableCell className="px-4">
                 <Badge variant={statusColors[displayStatus]}>
                   {statusLabels[displayStatus]}
                 </Badge>
               </TableCell>
-              <TableCell>
+              <TableCell className="px-4">
                 {invoice.status === "draft" ? (
                   <span className="text-muted-foreground">-</span>
                 ) : invoice.status === "paid" ? (
@@ -222,9 +222,9 @@ export function InvoicesTable({
                   )
                 )}
               </TableCell>
-              <TableCell>{formatDate(invoice.invoiceDate)}</TableCell>
-              <TableCell>{formatDate(invoice.dueDate)}</TableCell>
-              <TableCell>
+              <TableCell className="px-4">{formatDate(invoice.invoiceDate)}</TableCell>
+              <TableCell className="px-4">{formatDate(invoice.dueDate)}</TableCell>
+              <TableCell className="px-4">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon">

@@ -358,36 +358,36 @@ export function BokslutClient({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Kontroll</TableHead>
-                    <TableHead className="text-right">Belopp</TableHead>
-                    <TableHead className="text-right">Status</TableHead>
+                    <TableHead className="px-4">Kontroll</TableHead>
+                    <TableHead className="px-4 text-right">Belopp</TableHead>
+                    <TableHead className="px-4 text-right">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   <TableRow>
-                    <TableCell>Tillgångar (summa)</TableCell>
-                    <TableCell className="text-right font-mono">
+                    <TableCell className="px-4">Tillgångar (summa)</TableCell>
+                    <TableCell className="px-4 text-right font-mono">
                       {formatCurrency(reconciliationData.totalAssets)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="px-4 text-right">
                       <CheckCircle className="inline size-4 text-green-600" />
                     </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell>Eget kapital & Skulder (summa)</TableCell>
-                    <TableCell className="text-right font-mono">
+                    <TableCell className="px-4">Eget kapital & Skulder (summa)</TableCell>
+                    <TableCell className="px-4 text-right font-mono">
                       {formatCurrency(reconciliationData.totalEquityLiabilities)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="px-4 text-right">
                       <CheckCircle className="inline size-4 text-green-600" />
                     </TableCell>
                   </TableRow>
                   <TableRow className="font-medium">
-                    <TableCell>Balansräkning</TableCell>
-                    <TableCell className="text-right font-mono">
+                    <TableCell className="px-4">Balansräkning</TableCell>
+                    <TableCell className="px-4 text-right font-mono">
                       Differens: {formatCurrency(reconciliationData.difference)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="px-4 text-right">
                       {reconciliationData.isBalanced ? (
                         <Badge variant="secondary" className="gap-1 text-green-700">
                           <CheckCircle className="size-3" />
@@ -597,23 +597,23 @@ export function BokslutClient({
               <Table>
                 <TableBody>
                   <TableRow>
-                    <TableCell className="font-medium">Intäkter</TableCell>
-                    <TableCell className="text-right font-mono">
+                    <TableCell className="px-4 font-medium">Intäkter</TableCell>
+                    <TableCell className="px-4 text-right font-mono">
                       {formatCurrency(taxData.revenue)}
                     </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell className="font-medium">Kostnader</TableCell>
-                    <TableCell className="text-right font-mono">
+                    <TableCell className="px-4 font-medium">Kostnader</TableCell>
+                    <TableCell className="px-4 text-right font-mono">
                       - {formatCurrency(taxData.expenses)}
                     </TableCell>
                   </TableRow>
                   <TableRow className="border-t-2">
-                    <TableCell className="font-medium">
+                    <TableCell className="px-4 font-medium">
                       Resultat före skatt
                     </TableCell>
                     <TableCell
-                      className={`text-right font-mono font-bold ${
+                      className={`px-4 text-right font-mono font-bold ${
                         taxData.profitBeforeTax >= 0
                           ? "text-green-600"
                           : "text-red-600"
@@ -623,17 +623,17 @@ export function BokslutClient({
                     </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell className="font-medium">
+                    <TableCell className="px-4 font-medium">
                       Bolagsskatt ({formatPercent(taxData.taxRate)})
                     </TableCell>
-                    <TableCell className="text-right font-mono">
+                    <TableCell className="px-4 text-right font-mono">
                       - {formatCurrency(taxData.calculatedTax)}
                     </TableCell>
                   </TableRow>
                   <TableRow className="border-t-2 bg-muted/50">
-                    <TableCell className="font-bold">Årets resultat</TableCell>
+                    <TableCell className="px-4 font-bold">Årets resultat</TableCell>
                     <TableCell
-                      className={`text-right font-mono font-bold text-lg ${
+                      className={`px-4 text-right font-mono font-bold text-lg ${
                         taxData.profitAfterTax >= 0
                           ? "text-green-600"
                           : "text-red-600"

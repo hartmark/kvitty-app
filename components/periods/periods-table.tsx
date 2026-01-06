@@ -32,23 +32,23 @@ export function PeriodsTable({ periods, workspaceSlug }: PeriodsTableProps) {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Period</TableHead>
-          <TableHead>Startdatum</TableHead>
-          <TableHead>Slutdatum</TableHead>
-          <TableHead>Status</TableHead>
+          <TableHead className="px-4">Period</TableHead>
+          <TableHead className="px-4">Startdatum</TableHead>
+          <TableHead className="px-4">Slutdatum</TableHead>
+          <TableHead className="px-4">Status</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {periods.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={4} className="text-center text-muted-foreground">
+            <TableCell colSpan={4} className="px-4 text-center text-muted-foreground">
               Inga perioder hittades
             </TableCell>
           </TableRow>
         ) : (
           periods.map((period) => (
             <TableRow key={period.id}>
-              <TableCell>
+              <TableCell className="px-4">
                 <Link
                   href={`/${workspaceSlug}/${period.urlSlug}`}
                   className="font-medium hover:underline"
@@ -56,17 +56,17 @@ export function PeriodsTable({ periods, workspaceSlug }: PeriodsTableProps) {
                   {period.label}
                 </Link>
               </TableCell>
-              <TableCell>
+              <TableCell className="px-4">
                 {format(new Date(period.startDate), "d MMM yyyy", {
                   locale: sv,
                 })}
               </TableCell>
-              <TableCell>
+              <TableCell className="px-4">
                 {format(new Date(period.endDate), "d MMM yyyy", {
                   locale: sv,
                 })}
               </TableCell>
-              <TableCell>
+              <TableCell className="px-4">
                 {period.isLocked ? (
                   <div className="flex items-center gap-2">
                     <Badge variant="destructive" className="gap-1">

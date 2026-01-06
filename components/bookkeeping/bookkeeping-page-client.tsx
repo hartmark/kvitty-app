@@ -230,12 +230,12 @@ export function BookkeepingPageClient({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[80px]">Nr</TableHead>
-                    <TableHead className="w-[100px]">Datum</TableHead>
-                    <TableHead>Beskrivning</TableHead>
-                    <TableHead>Typ</TableHead>
-                    <TableHead className="text-right">Belopp</TableHead>
-                    <TableHead className="w-[40px]"></TableHead>
+                    <TableHead className="px-4 w-[80px]">Nr</TableHead>
+                    <TableHead className="px-4 w-[100px]">Datum</TableHead>
+                    <TableHead className="px-4">Beskrivning</TableHead>
+                    <TableHead className="px-4">Typ</TableHead>
+                    <TableHead className="px-4 text-right">Belopp</TableHead>
+                    <TableHead className="px-4 w-[40px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -250,27 +250,27 @@ export function BookkeepingPageClient({
                         key={entry.id}
                         className="cursor-pointer hover:bg-muted/50"
                       >
-                        <TableCell className="font-mono">
+                        <TableCell className="px-4 font-mono">
                           V{entry.verificationNumber}
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
+                        <TableCell className="px-4 text-muted-foreground">
                           {entry.entryDate}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-4">
                           <div className="font-medium">{entry.description}</div>
                           <div className="text-xs text-muted-foreground">
                             {entry.lines.length} konteringar
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-4">
                           <Badge variant="secondary">
                             {getEntryTypeLabel(entry.entryType)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right font-mono">
+                        <TableCell className="px-4 text-right font-mono">
                           {formatCurrency(totalDebit)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-4">
                           <CaretRight className="size-4 text-muted-foreground" />
                         </TableCell>
                       </TableRow>

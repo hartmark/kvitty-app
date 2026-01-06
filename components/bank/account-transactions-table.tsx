@@ -47,22 +47,22 @@ export function AccountTransactionsTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Datum</TableHead>
-            <TableHead>Verifikation</TableHead>
-            <TableHead>Beskrivning</TableHead>
-            <TableHead className="text-right">Summa</TableHead>
+            <TableHead className="px-4">Datum</TableHead>
+            <TableHead className="px-4">Verifikation</TableHead>
+            <TableHead className="px-4">Beskrivning</TableHead>
+            <TableHead className="px-4 text-right">Summa</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {isLoading ? (
             <TableRow>
-              <TableCell colSpan={4} className="h-24 text-center">
+              <TableCell colSpan={4} className="px-4 h-24 text-center">
                 <Spinner className="size-6 mx-auto" />
               </TableCell>
             </TableRow>
           ) : entries.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+              <TableCell colSpan={4} className="px-4 h-24 text-center text-muted-foreground">
                 Inga transaktioner hittades för detta konto
               </TableCell>
             </TableRow>
@@ -80,14 +80,14 @@ export function AccountTransactionsTable({
 
               return (
                 <TableRow key={`${item.id}-${item.line.id}`}>
-                  <TableCell>{formatDate(item.entryDate)}</TableCell>
-                  <TableCell>
+                  <TableCell className="px-4">{formatDate(item.entryDate)}</TableCell>
+                  <TableCell className="px-4">
                     V{item.verificationNumber}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="px-4">
                     {item.line.description || item.description}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="px-4 text-right">
                     {amountDisplay}
                   </TableCell>
                 </TableRow>

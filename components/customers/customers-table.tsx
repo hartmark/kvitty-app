@@ -38,23 +38,23 @@ export function CustomersTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Namn</TableHead>
-          <TableHead>Org.nr</TableHead>
-          <TableHead>E-post</TableHead>
-          <TableHead>Telefon</TableHead>
-          <TableHead>Ort</TableHead>
-          <TableHead className="w-[140px]" />
+          <TableHead className="px-4">Namn</TableHead>
+          <TableHead className="px-4">Org.nr</TableHead>
+          <TableHead className="px-4">E-post</TableHead>
+          <TableHead className="px-4">Telefon</TableHead>
+          <TableHead className="px-4">Ort</TableHead>
+          <TableHead className="px-4 w-[140px]" />
         </TableRow>
       </TableHeader>
       <TableBody>
         {customers.map((customer) => (
           <TableRow key={customer.id}>
-            <TableCell className="font-medium">{customer.name}</TableCell>
-            <TableCell className="font-mono text-sm">{customer.orgNumber || "-"}</TableCell>
-            <TableCell>{customer.email || "-"}</TableCell>
-            <TableCell>{customer.phone || "-"}</TableCell>
-            <TableCell>{customer.city || "-"}</TableCell>
-            <TableCell>
+            <TableCell className="px-4 font-medium">{customer.name}</TableCell>
+            <TableCell className="px-4 font-mono text-sm">{customer.orgNumber || "-"}</TableCell>
+            <TableCell className="px-4">{customer.email || "-"}</TableCell>
+            <TableCell className="px-4">{customer.phone || "-"}</TableCell>
+            <TableCell className="px-4">{customer.city || "-"}</TableCell>
+            <TableCell className="px-4">
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"

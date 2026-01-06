@@ -41,18 +41,18 @@ export function ProductsTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Beskrivning</TableHead>
-          <TableHead>Enhet</TableHead>
-          <TableHead className="text-right">Pris ex moms</TableHead>
-          <TableHead>Moms</TableHead>
-          <TableHead>Typ</TableHead>
-          <TableHead className="w-12" />
+          <TableHead className="px-4">Beskrivning</TableHead>
+          <TableHead className="px-4">Enhet</TableHead>
+          <TableHead className="px-4 text-right">Pris ex moms</TableHead>
+          <TableHead className="px-4">Moms</TableHead>
+          <TableHead className="px-4">Typ</TableHead>
+          <TableHead className="px-4 w-12" />
         </TableRow>
       </TableHeader>
       <TableBody>
         {products.map((product) => (
           <TableRow key={product.id} className={!product.isActive ? "opacity-50" : ""}>
-            <TableCell className="font-medium">
+            <TableCell className="px-4 font-medium">
               <div className="flex items-center gap-2">
                 {product.name}
                 {!product.isActive && (
@@ -68,17 +68,17 @@ export function ProductsTable({
                 </p>
               )}
             </TableCell>
-            <TableCell>{unitLabels[product.unit]}</TableCell>
-            <TableCell className="text-right font-mono">
+            <TableCell className="px-4">{unitLabels[product.unit]}</TableCell>
+            <TableCell className="px-4 text-right font-mono">
               {formatCurrency(product.unitPrice)}
             </TableCell>
-            <TableCell>{product.vatRate} %</TableCell>
-            <TableCell>
+            <TableCell className="px-4">{product.vatRate} %</TableCell>
+            <TableCell className="px-4">
               <Badge variant={product.type === "V" ? "default" : "secondary"}>
                 {productTypeLabels[product.type]}
               </Badge>
             </TableCell>
-            <TableCell>
+            <TableCell className="px-4">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon">
