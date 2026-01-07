@@ -9,8 +9,8 @@ const highlights = [
     icon: CurrencyCircleDollar,
     title: "Upp till 80% billigare",
     description:
-      "Kvitty kostar från 29 kr/mån jämfört med Bokios 249 kr/mån. Du får en komplett bokföringslösning för en bråkdel av priset.",
-    kvitty: "29–129 kr/mån",
+      "Kvitty kostar från 49 kr/mån jämfört med Bokios 249 kr/mån. Du får en komplett bokföringslösning för en bråkdel av priset.",
+    kvitty: "29–149 kr/mån",
     bokio: "249–599 kr/mån",
   },
   {

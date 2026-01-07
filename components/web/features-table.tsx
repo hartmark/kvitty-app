@@ -67,7 +67,7 @@ const featureCategories: FeatureCategory[] = [
 
 const plans = [
   { id: "verification" as const, name: "Kvitty Lite", price: "Gratis" },
-  { id: "full" as const, name: "Kvitty Online", price: "29 kr/mån", recommended: true },
+  { id: "full" as const, name: "Kvitty Online", price: "49 kr/mån", recommended: true },
   { id: "selfHosted" as const, name: "Self-hosted", price: "Gratis" },
 ];
 

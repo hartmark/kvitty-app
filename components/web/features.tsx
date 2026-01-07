@@ -37,7 +37,7 @@ const modes = [
 const additionalFeatures = [
   {
     icon: CurrencyCircleDollar,
-    title: "29 kr/mån",
+    title: "49 kr/mån",
     description: "En enkel pris för allt. Inga dolda avgifter.",
   },
   {

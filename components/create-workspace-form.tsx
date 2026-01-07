@@ -50,7 +50,7 @@ const modeInfo: Record<
     title: "Enkel",
     description: "Samla underlag och kvitton för din externa bokförare",
     icon: Files,
-    price: "29 kr/mån",
+    price: "49 kr/mån",
     benefits: [
       "Kvittohantering",
       "Obegränsade verifikationer",
@@ -65,7 +65,7 @@ const modeInfo: Record<
     title: "Bokföring",
     description: "Komplett bokföringssystem med löner, moms och AGI-deklaration",
     icon: Calculator,
-    price: "29 kr/mån",
+    price: "49 kr/mån",
     benefits: [
       "Traditionell bokföring",
       "Kvittohantering",

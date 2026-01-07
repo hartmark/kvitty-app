@@ -7,8 +7,8 @@ type Feature = {
 };
 
 const pricingFeatures: Feature[] = [
-  { name: "Grundpris", kvitty: "29 kr/mån", bokio: "249 kr/mån" },
-  { name: "Full bokföring", kvitty: "129 kr/mån", bokio: "249 kr/mån" },
+  { name: "Grundpris", kvitty: "49 kr/mån", bokio: "249 kr/mån" },
+  { name: "Full bokföring", kvitty: "149 kr/mån", bokio: "249 kr/mån" },
   { name: "Self-hosted", kvitty: "0 kr/mån", bokio: "-" },
 ];
 
