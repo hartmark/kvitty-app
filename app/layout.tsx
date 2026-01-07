@@ -5,15 +5,33 @@ import { Providers } from "@/components/providers";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
+const baseUrl = "https://www.kvitty.se";
+const imageUrl = `${baseUrl}/assets/SCR-20260105-mywx.png`;
+
 export const metadata: Metadata = {
   title: "Kvitty - Bokföring för småföretag",
   description: "Enkel bokföring för små team",
   openGraph: {
-    images: ["/assets/SCR-20260105-mywx.png"],
+    title: "Kvitty - Bokföring för småföretag",
+    description: "Enkel bokföring för små team",
+    url: baseUrl,
+    siteName: "Kvitty",
+    images: [
+      {
+        url: imageUrl,
+        width: 1200,
+        height: 630,
+        alt: "Kvitty Dashboard",
+      },
+    ],
+    locale: "sv_SE",
+    type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    images: ["/assets/SCR-20260105-mywx.png"],
+    title: "Kvitty - Bokföring för småföretag",
+    description: "Enkel bokföring för små team",
+    images: [imageUrl],
   },
 };
 
