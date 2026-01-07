@@ -16,7 +16,7 @@ Kvitty är en svensk bokförings- och fakturerings-SaaS-applikation byggd för s
 
 ## Funktioner
 
-### 📊 Två lägen
+### Två lägen
 
 **Traditionell bokföring**
 - Full dubbel bokföring med stöd för BAS-kontoplanen
@@ -30,26 +30,26 @@ Kvitty är en svensk bokförings- och fakturerings-SaaS-applikation byggd för s
 - Automatisk kategorisering med AI
 - Exportera underlag
 
-### 💼 Fakturering
+### Fakturering
 - Skapa och hantera fakturor
 - Kund- och produktregister
 - Automatisk momsberäkning (25%, 12%, 6%, 0%)
 - Skicka fakturor via e-post
 - Påminnelser för förfallna fakturor
 
-### 💰 Lönehantering
+### Lönehantering
 - Hantera anställda
 - Lönekörningar
 - AGI XML-generering för skatteverket
 - Lönestatistik och rapporter
 
-### 🏦 Bankintegration
+### Bankintegration
 - Importera banktransaktioner
 - Matcha transaktioner med kvitton
 - Duplikatkontroll
 - Transaktionshistorik
 
-### 🤖 AI-funktioner
+### AI-funktioner
 - Analysera kvitton med AI
 - Automatisk kategorisering
 - Chat-assistent för bokföringsfrågor
@@ -62,7 +62,7 @@ Kvitty är en svensk bokförings- och fakturerings-SaaS-applikation byggd för s
 - **API**: tRPC med React Query
 - **Autentisering**: better-auth (magic link, e-post OTP, Google OAuth)
 - **Styling**: Tailwind CSS v4 + shadcn/ui komponenter
-- **Filhantering**: Vercel Blob
+- **Filhantering**: AWS S3
 - **AI**: Groq SDK med AI SDK
 - **Animationer**: Motion (Framer Motion)
 - **Tabeller**: TanStack Table
@@ -75,7 +75,7 @@ Kvitty är en svensk bokförings- och fakturerings-SaaS-applikation byggd för s
 - Node.js 20 eller senare
 - pnpm (eller npm/yarn)
 - PostgreSQL-databas
-- Vercel Blob-konto (för filuppladdningar)
+- AWS S3-konto (för filuppladdningar)
 - Groq API-nyckel (för AI-funktioner)
 
 ### Installation
@@ -104,7 +104,6 @@ BETTER_AUTH_URL=http://localhost:3000
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 GROQ_API_KEY=your-groq-api-key
-BLOB_READ_WRITE_TOKEN=your-vercel-blob-token
 ```
 
 5. Pusha databasschemat:
@@ -237,7 +236,14 @@ Se `.env.example` för alla nödvändiga variabler:
 - `BETTER_AUTH_URL` - Base URL för auth (t.ex. http://localhost:3000)
 - `GOOGLE_CLIENT_ID/SECRET` - Google OAuth-uppgifter
 - `GROQ_API_KEY` - API-nyckel för AI-funktioner
-- `BLOB_READ_WRITE_TOKEN` - Vercel Blob token för filuppladdningar
+- AWS S3-konfiguration - Se `.env.example` för S3-relaterade variabler
+
+## Nice to have
+
+### Skattetabeller
+
+Skattetabeller kan hämtas från Skatteverkets öppna data:
+- Fetch: https://skatteverket.entryscape.net/rowstore/dataset/88320397-5c32-4c16-ae79-d36d95b17b95/json
 
 ## Licens
 

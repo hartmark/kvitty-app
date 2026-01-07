@@ -51,7 +51,7 @@ export function AIChat({ onSuggestion, context, className }: AIChatProps) {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch("/api/chat/bookkeeping", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

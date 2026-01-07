@@ -12,7 +12,20 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Field, FieldGroup, FieldLabel, FieldError } from "@/components/ui/field";
+import {
+  TAX_TABLE_OPTIONS,
+  TAX_COLUMN_OPTIONS,
+  TAX_TABLE_DESCRIPTIONS,
+  TAX_COLUMN_DESCRIPTIONS,
+} from "@/lib/consts/tax-tables";
 import { Spinner } from "@/components/ui/spinner";
 import {
   AlertDialog,
@@ -332,25 +345,41 @@ export function PersonalDetailActions({ employee }: PersonalDetailActionsProps) 
 
               <div className="grid grid-cols-2 gap-4">
                 <Field>
-                  <FieldLabel htmlFor="taxTable">Skattetabell</FieldLabel>
-                  <Input
-                    id="taxTable"
-                    type="number"
+                  <FieldLabel>Skattetabell</FieldLabel>
+                  <Select
                     value={form.taxTable}
-                    onChange={(e) => setForm({ ...form, taxTable: e.target.value })}
-                    placeholder="T.ex. 30, 31, 32"
-                  />
+                    onValueChange={(value) => setForm({ ...form, taxTable: value })}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Välj tabell" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TAX_TABLE_OPTIONS.map((table) => (
+                        <SelectItem key={table} value={table.toString()}>
+                          {TAX_TABLE_DESCRIPTIONS[table]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </Field>
 
                 <Field>
-                  <FieldLabel htmlFor="taxColumn">Skattkolumn</FieldLabel>
-                  <Input
-                    id="taxColumn"
-                    type="number"
+                  <FieldLabel>Skattekolumn</FieldLabel>
+                  <Select
                     value={form.taxColumn}
-                    onChange={(e) => setForm({ ...form, taxColumn: e.target.value })}
-                    placeholder="T.ex. 1, 2, 3"
-                  />
+                    onValueChange={(value) => setForm({ ...form, taxColumn: value })}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Välj kolumn" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TAX_COLUMN_OPTIONS.map((column) => (
+                        <SelectItem key={column} value={column.toString()}>
+                          {TAX_COLUMN_DESCRIPTIONS[column]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </Field>
               </div>
 

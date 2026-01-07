@@ -1,23 +1,19 @@
-import { generateObject } from "ai";
+import { streamText } from "ai";
 import { z } from "zod";
 import { bookkeepingModel } from "@/lib/ai";
-import { BOOKKEEPING_SYSTEM_PROMPT } from "@/lib/ai/prompts";
+import { ASSISTANT_SYSTEM_PROMPT } from "@/lib/ai/assistant-prompt";
+import { createChatTools } from "@/lib/ai/chat-tools";
 import { getSession } from "@/lib/session";
+import { db } from "@/lib/db";
+import { workspaceMembers } from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
 
-// Response schema - always get message + optional suggestion
-const responseSchema = z.object({
-  message: z.string().describe("Ditt svar till användaren på svenska"),
-  suggestion: z.object({
-    description: z.string().describe("Kort beskrivning av verifikationen"),
-    lines: z.array(
-      z.object({
-        accountNumber: z.number().describe("Kontonummer från BAS-kontoplanen"),
-        accountName: z.string().describe("Kontonamn"),
-        debit: z.number().describe("Debetbelopp i kr, 0 om inget"),
-        credit: z.number().describe("Kreditbelopp i kr, 0 om inget"),
-      })
-    ).describe("Bokföringsrader som balanserar"),
-  }).optional().describe("Bokföringsförslag om användaren beskriver en transaktion"),
+export const maxDuration = 30;
+
+const requestSchema = z.object({
+  messages: z.array(z.any()),
+  workspaceId: z.string(),
+  fiscalPeriodId: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -27,29 +23,35 @@ export async function POST(req: Request) {
       return new Response("Unauthorized", { status: 401 });
     }
 
-    const { messages, context } = await req.json();
+    const body = await req.json();
+    const { messages, workspaceId, fiscalPeriodId } = requestSchema.parse(body);
 
-    let systemPrompt = BOOKKEEPING_SYSTEM_PROMPT;
-    if (context?.entryType) {
-      systemPrompt += `\n\nKontext: Verifikationstyp: ${context.entryType}`;
-    }
-    if (context?.description) {
-      systemPrompt += `\nBeskrivning: ${context.description}`;
-    }
-
-    const { object } = await generateObject({
-      model: bookkeepingModel,
-      schema: responseSchema,
-      system: systemPrompt,
-      messages: messages.map((m: { role: string; content: string }) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content,
-      })),
+    const membership = await db.query.workspaceMembers.findFirst({
+      where: and(
+        eq(workspaceMembers.workspaceId, workspaceId),
+        eq(workspaceMembers.userId, session.user.id)
+      ),
     });
 
-    return Response.json(object);
+    if (!membership) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    const tools = createChatTools(workspaceId, fiscalPeriodId);
+
+    const result = streamText({
+      model: bookkeepingModel,
+      system: ASSISTANT_SYSTEM_PROMPT,
+      messages,
+      tools,
+    });
+
+    return result.toTextStreamResponse();
   } catch (error) {
-    console.error("Chat API error:", error);
+    console.error("Assistant API error:", error);
+    if (error instanceof z.ZodError) {
+      return new Response("Invalid request body", { status: 400 });
+    }
     return new Response("Internal Server Error", { status: 500 });
   }
 }

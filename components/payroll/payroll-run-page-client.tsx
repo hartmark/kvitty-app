@@ -21,16 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { PageHeader } from "@/components/layout/page-header";
 import { Spinner } from "@/components/ui/spinner";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -196,36 +187,15 @@ export function PayrollRunPageClient({ runId, workspaceSlug }: PayrollRunPageCli
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator
-            orientation="vertical"
-            className="mr-2 data-[orientation=vertical]:h-4 mt-1.5"
-          />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href={`/${workspaceSlug}/personal`}>
-                  Personal
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink href={`/${workspaceSlug}/personal/lon`}>
-                  Lönekörningar
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>
-                  {run.period.substring(0, 4)}-{run.period.substring(4)} • Körning {run.runNumber}
-                </BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
+      <PageHeader
+        workspaceSlug={workspaceSlug}
+        workspaceName={workspace.name}
+        breadcrumbs={[
+          { label: "Personal", href: `/${workspaceSlug}/personal` },
+          { label: "Lönekörningar", href: `/${workspaceSlug}/personal/lon` },
+        ]}
+        currentPage={`${run.period.substring(0, 4)}-${run.period.substring(4)} • Körning ${run.runNumber}`}
+      />
 
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
         <div className="flex items-center justify-between">

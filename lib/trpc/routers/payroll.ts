@@ -22,6 +22,7 @@ import {
   calculateEmployerContributions,
   extractBirthYear,
 } from "@/lib/consts/employer-contribution-rates";
+import { calculateTaxFromTable } from "@/lib/consts/tax-tables";
 import { generateAGIXml } from "@/lib/utils/agi-generator";
 import { decrypt } from "@/lib/utils/encryption";
 import { generateSalaryStatementPdf } from "@/lib/utils/salary-statement-pdf";
@@ -196,10 +197,18 @@ export const payrollRouter = router({
         birthYear
       );
 
-      // Simple tax calculation (30% default if no tax table specified)
-      const taxDeduction = employee.taxTable
-        ? Math.round(input.entry.grossSalary * 0.3) // Simplified - would use tax tables
-        : Math.round(input.entry.grossSalary * 0.3);
+      // Calculate tax using tax tables - required for all employees
+      if (!employee.taxTable || !employee.taxColumn) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Anställd saknar skattetabell. Lägg till skattetabell och kolumn i personalprofilen.",
+        });
+      }
+      const taxDeduction = calculateTaxFromTable(
+        input.entry.grossSalary,
+        employee.taxTable,
+        employee.taxColumn
+      );
 
       const netSalary = input.entry.grossSalary - taxDeduction;
 
@@ -261,7 +270,20 @@ export const payrollRouter = router({
       const decryptedPersonalNumber = decrypt(entry.employee.personalNumber);
       const birthYear = extractBirthYear(decryptedPersonalNumber);
       const employerContributions = calculateEmployerContributions(grossSalary, birthYear);
-      const taxDeduction = Math.round(grossSalary * 0.3);
+
+      // Calculate tax using tax tables - required for all employees
+      if (!entry.employee.taxTable || !entry.employee.taxColumn) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Anställd saknar skattetabell. Lägg till skattetabell och kolumn i personalprofilen.",
+        });
+      }
+      const taxDeduction = calculateTaxFromTable(
+        grossSalary,
+        entry.employee.taxTable,
+        entry.employee.taxColumn
+      );
+
       const netSalary = grossSalary - taxDeduction;
 
       const [updated] = await ctx.db
@@ -354,7 +376,20 @@ export const payrollRouter = router({
         const decryptedPersonalNumber = decrypt(entry.employee.personalNumber);
         const birthYear = extractBirthYear(decryptedPersonalNumber);
         const employerContributions = calculateEmployerContributions(grossSalary, birthYear);
-        const taxDeduction = Math.round(grossSalary * 0.3);
+
+        // Calculate tax using tax tables - required for all employees
+        if (!entry.employee.taxTable || !entry.employee.taxColumn) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Anställd ${entry.employee.firstName} ${entry.employee.lastName} saknar skattetabell. Lägg till skattetabell och kolumn i personalprofilen.`,
+          });
+        }
+        const taxDeduction = calculateTaxFromTable(
+          grossSalary,
+          entry.employee.taxTable,
+          entry.employee.taxColumn
+        );
+
         const netSalary = grossSalary - taxDeduction;
 
         await ctx.db

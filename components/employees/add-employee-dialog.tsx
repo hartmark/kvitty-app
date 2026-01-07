@@ -9,7 +9,20 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Field, FieldGroup, FieldLabel, FieldError } from "@/components/ui/field";
+import {
+  TAX_TABLE_OPTIONS,
+  TAX_COLUMN_OPTIONS,
+  TAX_TABLE_DESCRIPTIONS,
+  TAX_COLUMN_DESCRIPTIONS,
+} from "@/lib/consts/tax-tables";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc/client";
@@ -36,6 +49,8 @@ export function AddEmployeeDialog({
     address: "",
     postalCode: "",
     city: "",
+    taxTable: "",
+    taxColumn: "",
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -62,6 +77,8 @@ export function AddEmployeeDialog({
       address: "",
       postalCode: "",
       city: "",
+      taxTable: "",
+      taxColumn: "",
     });
     setError(null);
   };
@@ -72,7 +89,16 @@ export function AddEmployeeDialog({
 
     createEmployee.mutate({
       workspaceId,
-      ...form,
+      personalNumber: form.personalNumber,
+      firstName: form.firstName,
+      lastName: form.lastName,
+      email: form.email || undefined,
+      phone: form.phone || undefined,
+      address: form.address || undefined,
+      postalCode: form.postalCode || undefined,
+      city: form.city || undefined,
+      taxTable: form.taxTable ? parseInt(form.taxTable, 10) : undefined,
+      taxColumn: form.taxColumn ? parseInt(form.taxColumn, 10) : undefined,
     });
   };
 
@@ -180,6 +206,46 @@ export function AddEmployeeDialog({
                   onChange={(e) => setForm({ ...form, city: e.target.value })}
                   placeholder="Stad"
                 />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field>
+                <FieldLabel>Skattetabell</FieldLabel>
+                <Select
+                  value={form.taxTable}
+                  onValueChange={(value) => setForm({ ...form, taxTable: value })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Välj tabell" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TAX_TABLE_OPTIONS.map((table) => (
+                      <SelectItem key={table} value={table.toString()}>
+                        {TAX_TABLE_DESCRIPTIONS[table]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field>
+                <FieldLabel>Skattekolumn</FieldLabel>
+                <Select
+                  value={form.taxColumn}
+                  onValueChange={(value) => setForm({ ...form, taxColumn: value })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Välj kolumn" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TAX_COLUMN_OPTIONS.map((column) => (
+                      <SelectItem key={column} value={column.toString()}>
+                        {TAX_COLUMN_DESCRIPTIONS[column]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
             </div>
 

@@ -45,7 +45,7 @@ export const createEmployeeSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
-  taxTable: z.number().int().min(1).max(99).optional(),
+  taxTable: z.number().int().min(29).max(42).optional(),
   taxColumn: z.number().int().min(1).max(6).optional(),
 });
 
@@ -68,7 +68,7 @@ export const updateEmployeeSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional()
     .nullable(),
-  taxTable: z.number().int().min(1).max(99).optional().nullable(),
+  taxTable: z.number().int().min(29).max(42).optional().nullable(),
   taxColumn: z.number().int().min(1).max(6).optional().nullable(),
   isActive: z.boolean().optional(),
 });
