@@ -1,14 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import { useQueryState, parseAsString } from "nuqs";
 import { trpc } from "@/lib/trpc/client";
 import { ReportTable } from "@/components/reports/report-table";
 import { PeriodSelector } from "@/components/reports/period-selector";
+import { ReportExportMenu } from "@/components/reports/report-export-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Warning, ArrowClockwise } from "@phosphor-icons/react";
+import { generateIncomeStatementCsv } from "@/lib/utils/report-csv/income-statement-csv";
+import { toast } from "sonner";
 
 interface Period {
   id: string;
@@ -20,6 +24,8 @@ interface Period {
 
 interface IncomeStatementClientProps {
   workspaceId: string;
+  workspaceName: string;
+  workspaceOrgName?: string | null;
   periods: Period[];
   defaultPeriodId: string;
 }
@@ -35,6 +41,8 @@ function formatCurrency(value: number): string {
 
 export function IncomeStatementClient({
   workspaceId,
+  workspaceName,
+  workspaceOrgName,
   periods,
   defaultPeriodId,
 }: IncomeStatementClientProps) {
@@ -42,6 +50,7 @@ export function IncomeStatementClient({
     "period",
     parseAsString.withDefault(defaultPeriodId)
   );
+  const [isExporting, setIsExporting] = useState(false);
 
   const { data, isLoading, isError, error, refetch } = trpc.reports.incomeStatement.useQuery(
     {
@@ -53,6 +62,85 @@ export function IncomeStatementClient({
 
   const handlePeriodChange = (periodId: string) => {
     setSelectedPeriodId(periodId);
+  };
+
+  const handleExportPDF = async () => {
+    if (!data) {
+      toast.error("Ingen data att exportera");
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const url = `/api/reports/income-statement/${selectedPeriodId}/pdf`;
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Okänt fel" }));
+        throw new Error(error.error || "PDF-generering misslyckades");
+      }
+
+      // Create blob and open in new window
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const newWindow = window.open(blobUrl, "_blank");
+
+      if (!newWindow) {
+        toast.error("Popup blockerades. Tillåt popups för denna sida.");
+      } else {
+        toast.success("PDF öppnas i nytt fönster");
+      }
+
+      // Clean up blob URL after a delay
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+    } catch (error) {
+      console.error("PDF export error:", error);
+      toast.error(error instanceof Error ? error.message : "Kunde inte exportera PDF");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (!data) {
+      toast.error("Ingen data att exportera");
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const csv = generateIncomeStatementCsv({
+        workspace: {
+          id: workspaceId,
+          name: workspaceName,
+          orgName: workspaceOrgName,
+          orgNumber: null,
+          address: null,
+          postalCode: null,
+          city: null,
+        },
+        period: data.period,
+        groups: data.groups,
+        totals: data.totals,
+      });
+
+      // Create blob and download
+      const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const filename = `Resultatrapport_${data.period.label.replace(/\s/g, "_")}.csv`;
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast.success(`CSV-fil nedladdad: ${filename}`);
+    } catch (error) {
+      console.error("CSV export error:", error);
+      toast.error("Kunde inte generera CSV-fil");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   if (isLoading) {
@@ -88,11 +176,19 @@ export function IncomeStatementClient({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <PeriodSelector
-          periods={periods}
-          selectedPeriodId={selectedPeriodId}
-          onPeriodChange={handlePeriodChange}
-        />
+        <div className="flex items-center gap-3">
+          <PeriodSelector
+            periods={periods}
+            selectedPeriodId={selectedPeriodId}
+            onPeriodChange={handlePeriodChange}
+          />
+          <ReportExportMenu
+            onExportPDF={handleExportPDF}
+            onExportCSV={handleExportCSV}
+            isLoading={isExporting}
+            disabled={!data}
+          />
+        </div>
 
         {data?.period && (
           <div className="text-sm text-muted-foreground">

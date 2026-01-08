@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { CaretUpDown, Plus, Receipt, Users, Gear, Check } from "@phosphor-icons/react";
+import { setUserCookie } from "@/lib/user-cookie";
 
 import {
   DropdownMenu,
@@ -87,7 +88,16 @@ export function WorkspaceSwitcher({
               const isActive = workspace.id === currentWorkspace.id;
               return (
                 <DropdownMenuItem key={workspace.id} asChild>
-                  <Link href={`/${workspace.slug}`} className="flex items-center gap-2">
+                  <Link
+                    href={`/${workspace.slug}`}
+                    className="flex items-center gap-2"
+                    onClick={() => {
+                      setUserCookie({
+                        slug: workspace.slug,
+                        name: workspace.name
+                      });
+                    }}
+                  >
                     <div className="bg-sidebar-primary flex aspect-square size-8 items-center justify-center rounded-lg isolate [&_svg]:text-sidebar-primary-foreground!">
                       <Receipt className="size-4" weight="duotone" style={{ color: 'hsl(var(--sidebar-primary-foreground))', fill: 'currentColor' }} />
                     </div>

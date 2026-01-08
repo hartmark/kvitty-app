@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { workspaceMembers } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { getUserCookieServer } from "@/lib/user-cookie.server";
 
 export const metadata: Metadata = {
   title: "App — Kvitty",
@@ -24,6 +25,21 @@ export default async function AppPage() {
   });
 
   if (memberships.length > 0) {
+    // Try to get workspace from cookie
+    const cookieData = await getUserCookieServer();
+
+    if (cookieData?.slug) {
+      // Check if user has access to the cookie workspace
+      const cookieWorkspace = memberships.find(
+        m => m.workspace.slug === cookieData.slug
+      );
+
+      if (cookieWorkspace) {
+        redirect(`/${cookieWorkspace.workspace.slug}`);
+      }
+    }
+
+    // Fallback to first workspace
     redirect(`/${memberships[0].workspace.slug}`);
   }
 

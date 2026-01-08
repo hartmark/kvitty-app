@@ -75,6 +75,8 @@ export default async function BalanceSheetPage({
         ) : (
           <BalanceSheetClient
             workspaceId={workspace.id}
+            workspaceName={workspace.name}
+            workspaceOrgName={workspace.orgName}
             periods={periods.map((p) => ({
               id: p.id,
               label: p.label,

@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useQueryState, parseAsString, parseAsInteger } from "nuqs";
 import { trpc } from "@/lib/trpc/client";
 import { PeriodSelector } from "@/components/reports/period-selector";
+import { ReportExportMenu } from "@/components/reports/report-export-menu";
 import { VatPaymentInfo } from "@/components/reports/vat-payment-info";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -25,6 +27,8 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Warning, ArrowClockwise } from "@phosphor-icons/react";
+import { generateVatReportCsv } from "@/lib/utils/report-csv/vat-report-csv";
+import { toast } from "sonner";
 
 interface Period {
   id: string;
@@ -36,6 +40,8 @@ interface Period {
 
 interface VatReportClientProps {
   workspaceId: string;
+  workspaceName: string;
+  workspaceOrgName?: string | null;
   periods: Period[];
   defaultPeriodId: string;
   defaultVatPeriodIndex: number;
@@ -53,6 +59,8 @@ function formatCurrency(value: number): string {
 
 export function VatReportClient({
   workspaceId,
+  workspaceName,
+  workspaceOrgName,
   periods,
   defaultPeriodId,
   defaultVatPeriodIndex,
@@ -66,6 +74,7 @@ export function VatReportClient({
     "vatPeriod",
     parseAsInteger.withDefault(defaultVatPeriodIndex)
   );
+  const [isExporting, setIsExporting] = useState(false);
 
   const { data: vatPeriods, isLoading: periodsLoading, isError: periodsError, error: periodsErrorData, refetch: refetchPeriods } =
     trpc.reports.vatPeriods.useQuery(
@@ -93,6 +102,86 @@ export function VatReportClient({
 
   const handleVatPeriodChange = (index: string) => {
     setSelectedVatPeriodIndex(parseInt(index, 10));
+  };
+
+  const handleExportPDF = async () => {
+    if (!vatReport) {
+      toast.error("Ingen data att exportera");
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const url = `/api/reports/vat-report/${selectedPeriodId}/${selectedVatPeriodIndex}/pdf`;
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Okänt fel" }));
+        throw new Error(error.error || "PDF-generering misslyckades");
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const newWindow = window.open(blobUrl, "_blank");
+
+      if (!newWindow) {
+        toast.error("Popup blockerades. Tillåt popups för denna sida.");
+      } else {
+        toast.success("PDF öppnas i nytt fönster");
+      }
+
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+    } catch (error) {
+      console.error("PDF export error:", error);
+      toast.error(error instanceof Error ? error.message : "Kunde inte exportera PDF");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (!vatReport) {
+      toast.error("Ingen data att exportera");
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const csv = generateVatReportCsv({
+        workspace: {
+          id: workspaceId,
+          name: workspaceName,
+          orgName: workspaceOrgName,
+          orgNumber: null,
+          address: null,
+          postalCode: null,
+          city: null,
+        },
+        period: vatReport.period,
+        frequency: vatReport.frequency,
+        outputVat: vatReport.outputVat,
+        inputVat: vatReport.inputVat,
+        netVat: vatReport.netVat,
+        deadline: vatReport.deadline,
+        payment: vatReport.payment,
+      });
+
+      const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const filename = `Momsrapport_${vatReport.period.label.replace(/\s/g, "_")}.csv`;
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast.success(`CSV-fil nedladdad: ${filename}`);
+    } catch (error) {
+      console.error("CSV export error:", error);
+      toast.error("Kunde inte generera CSV-fil");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const isLoading = periodsLoading || reportLoading;
@@ -176,6 +265,13 @@ export function VatReportClient({
         )}
 
         <Badge variant="secondary">{frequencyLabel} momsrapportering</Badge>
+
+        <ReportExportMenu
+          onExportPDF={handleExportPDF}
+          onExportCSV={handleExportCSV}
+          isLoading={isExporting}
+          disabled={!vatReport}
+        />
       </div>
 
       {vatReport && (

@@ -1,15 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { useQueryState, parseAsString } from "nuqs";
 import { trpc } from "@/lib/trpc/client";
 import { BalanceSheetTable } from "@/components/reports/report-table";
 import { PeriodSelector } from "@/components/reports/period-selector";
+import { ReportExportMenu } from "@/components/reports/report-export-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Warning, ArrowClockwise } from "@phosphor-icons/react";
+import { generateBalanceSheetCsv } from "@/lib/utils/report-csv/balance-sheet-csv";
+import { toast } from "sonner";
 
 interface Period {
   id: string;
@@ -21,6 +25,8 @@ interface Period {
 
 interface BalanceSheetClientProps {
   workspaceId: string;
+  workspaceName: string;
+  workspaceOrgName?: string | null;
   periods: Period[];
   defaultPeriodId: string;
 }
@@ -36,6 +42,8 @@ function formatCurrency(value: number): string {
 
 export function BalanceSheetClient({
   workspaceId,
+  workspaceName,
+  workspaceOrgName,
   periods,
   defaultPeriodId,
 }: BalanceSheetClientProps) {
@@ -43,6 +51,7 @@ export function BalanceSheetClient({
     "period",
     parseAsString.withDefault(defaultPeriodId)
   );
+  const [isExporting, setIsExporting] = useState(false);
 
   const { data, isLoading, isError, error, refetch } = trpc.reports.balanceSheet.useQuery(
     {
@@ -54,6 +63,84 @@ export function BalanceSheetClient({
 
   const handlePeriodChange = (periodId: string) => {
     setSelectedPeriodId(periodId);
+  };
+
+  const handleExportPDF = async () => {
+    if (!data) {
+      toast.error("Ingen data att exportera");
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const url = `/api/reports/balance-sheet/${selectedPeriodId}/pdf`;
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Okänt fel" }));
+        throw new Error(error.error || "PDF-generering misslyckades");
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const newWindow = window.open(blobUrl, "_blank");
+
+      if (!newWindow) {
+        toast.error("Popup blockerades. Tillåt popups för denna sida.");
+      } else {
+        toast.success("PDF öppnas i nytt fönster");
+      }
+
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+    } catch (error) {
+      console.error("PDF export error:", error);
+      toast.error(error instanceof Error ? error.message : "Kunde inte exportera PDF");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (!data) {
+      toast.error("Ingen data att exportera");
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const csv = generateBalanceSheetCsv({
+        workspace: {
+          id: workspaceId,
+          name: workspaceName,
+          orgName: workspaceOrgName,
+          orgNumber: null,
+          address: null,
+          postalCode: null,
+          city: null,
+        },
+        period: data.period,
+        assets: data.assets,
+        equityLiabilities: data.equityLiabilities,
+        currentYearProfit: data.currentYearProfit,
+        isBalanced: data.isBalanced,
+      });
+
+      const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const filename = `Balansrapport_${data.period.label.replace(/\s/g, "_")}.csv`;
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast.success(`CSV-fil nedladdad: ${filename}`);
+    } catch (error) {
+      console.error("CSV export error:", error);
+      toast.error("Kunde inte generera CSV-fil");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   if (isLoading) {
@@ -89,11 +176,19 @@ export function BalanceSheetClient({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <PeriodSelector
-          periods={periods}
-          selectedPeriodId={selectedPeriodId}
-          onPeriodChange={handlePeriodChange}
-        />
+        <div className="flex items-center gap-3">
+          <PeriodSelector
+            periods={periods}
+            selectedPeriodId={selectedPeriodId}
+            onPeriodChange={handlePeriodChange}
+          />
+          <ReportExportMenu
+            onExportPDF={handleExportPDF}
+            onExportCSV={handleExportCSV}
+            isLoading={isExporting}
+            disabled={!data}
+          />
+        </div>
 
         <div className="flex items-center gap-4">
           {data?.period && (

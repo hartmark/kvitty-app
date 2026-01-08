@@ -6,6 +6,7 @@ import { getSession } from "@/lib/session";
 import { WorkspaceProvider } from "@/components/workspace-provider";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset } from "@/components/ui/sidebar";
+import { getUserCookieServer } from "@/lib/user-cookie.server";
 
 export default async function UserLayout({
   children,
@@ -30,7 +31,21 @@ export default async function UserLayout({
   }
 
   const userWorkspaces = memberships.map((m) => m.workspace);
-  const currentWorkspace = userWorkspaces[0];
+
+  // Try to get workspace from cookie
+  let currentWorkspace = userWorkspaces[0]; // Default fallback
+
+  const cookieData = await getUserCookieServer();
+  if (cookieData?.slug) {
+    // Check if user has access to the cookie workspace
+    const cookieWorkspace = userWorkspaces.find(
+      w => w.slug === cookieData.slug
+    );
+
+    if (cookieWorkspace) {
+      currentWorkspace = cookieWorkspace;
+    }
+  }
 
   // Get periods for the current workspace
   const periods = await db.query.fiscalPeriods.findMany({
