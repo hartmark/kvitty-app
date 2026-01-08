@@ -17,7 +17,7 @@ const responseSchema = z.object({
         credit: z.number().describe("Kreditbelopp i kr, 0 om inget"),
       })
     ).describe("Bokföringsrader som balanserar"),
-  }).optional().describe("Bokföringsförslag om användaren beskriver en transaktion"),
+  }).nullable().optional().describe("Bokföringsförslag om användaren beskriver en transaktion"),
 });
 
 export async function POST(req: Request) {

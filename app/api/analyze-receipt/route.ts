@@ -84,6 +84,13 @@ export async function POST(req: Request) {
       return Response.json({ success: false, error: "Ingen fil uppladdad" });
     }
 
+    if (!file.type.startsWith("image/")) {
+      return Response.json({
+        success: false,
+        error: "Endast bildfiler stöds för kvittoanalys. Ladda upp en bild (PNG, JPG, etc.)",
+      });
+    }
+
     // Convert file to base64
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);

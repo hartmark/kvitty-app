@@ -42,7 +42,7 @@ export function VerificationChart({ data }: VerificationChartProps) {
       <h3 className="text-sm font-medium text-muted-foreground mb-4">
         Belopp per månad
       </h3>
-      <div className="h-[260px] **:focus:outline-none **:focus-visible:ring-0 **:focus-visible:outline-none">
+      <div className="h-[260px] w-full min-w-0 **:focus:outline-none **:focus-visible:ring-0 **:focus-visible:outline-none">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
             <defs>
