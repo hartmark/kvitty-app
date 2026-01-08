@@ -443,12 +443,12 @@ export function FullModeSidebar({
             </Collapsible>
           </SidebarGroup>
 
-          {/* Bokföring och bokslut */}
+          {/* Bokföring & bokslut */}
           <SidebarGroup>
             <Collapsible open={bookkeepingAnnualExpanded} onOpenChange={setBookkeepingAnnualExpanded} className="group/collapsible">
               <SidebarGroupLabel asChild>
                 <CollapsibleTrigger className="w-full flex items-center justify-between group">
-                  <span>Bokföring och bokslut</span>
+                  <span>Bokslut</span>
                   <div className="relative size-3.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Plus className={`absolute inset-0 size-3.5 transition-all duration-200 ${bookkeepingAnnualExpanded ? 'opacity-0 rotate-90' : 'opacity-100 rotate-0'}`} />
                     <Minus className={`absolute inset-0 size-3.5 transition-all duration-200 ${bookkeepingAnnualExpanded ? 'opacity-100 rotate-0' : 'opacity-0 -rotate-90'}`} />
