@@ -157,7 +157,7 @@ export function AIChatDrawer({ onClose }: AIChatDrawerProps) {
                 }
               }
             }}
-            placeholder="Stall en fraga..."
+            placeholder="Ställ en fråga..."
             disabled={isStreaming}
             rows={4}
             className="min-h-[100px]"
