@@ -14,7 +14,7 @@ import {
   updateJournalEntrySchema,
 } from "@/lib/validations/journal-entry";
 import { previewSIEImportSchema, importSIESchema } from "@/lib/validations/sie-import";
-import { deleteFromS3 } from "@/lib/utils/s3";
+import { deleteFile } from "@/lib/storage";
 import {
   parseSIEFileFromBuffer,
   filterVerificationsByDateRange,
@@ -507,11 +507,11 @@ export const journalEntriesRouter = router({
         throw new TRPCError({ code: "NOT_FOUND" });
       }
 
-      // Delete from S3
+      // Delete from storage
       try {
-        await deleteFromS3(attachment.fileUrl);
+        await deleteFile(attachment.fileUrl);
       } catch (error) {
-        console.error("Failed to delete from S3:", error);
+        console.error("Failed to delete from storage:", error);
       }
 
       await ctx.db

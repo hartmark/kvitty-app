@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { createAuthMiddleware, APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink, emailOTP } from "better-auth/plugins";
 import { db } from "./db";
@@ -23,6 +24,20 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // Update session daily
+  },
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path.startsWith("/sign-up")) {
+        const registrationsEnabled =
+          process.env.REGISTRATIONS_ENABLED !== "false";
+
+        if (!registrationsEnabled) {
+          throw new APIError("BAD_REQUEST", {
+            message: "New user registrations are currently disabled",
+          });
+        }
+      }
+    }),
   },
   plugins: [
     magicLink({

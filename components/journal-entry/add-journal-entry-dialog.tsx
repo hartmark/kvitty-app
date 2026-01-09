@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
-import { useS3Upload } from "@/lib/hooks/use-s3-upload";
+import { useFileUpload } from "@/lib/hooks/use-file-upload";
 import {
   Plus,
   Receipt,
@@ -237,7 +237,7 @@ export function AddJournalEntryDialog({
   });
 
   const utils = trpc.useUtils();
-  const { upload: s3Upload } = useS3Upload();
+  const { upload: fileUpload } = useFileUpload();
   const addAttachment = trpc.journalEntries.addAttachment.useMutation();
 
   const uploadFiles = async (journalEntryId: string) => {
@@ -246,12 +246,12 @@ export function AddJournalEntryDialog({
 
     for (const file of files) {
       try {
-        const { cloudFrontUrl } = await s3Upload(file, { workspaceSlug });
+        const { url } = await fileUpload(file, { workspaceSlug });
         await addAttachment.mutateAsync({
           workspaceId,
           journalEntryId,
           fileName: file.name,
-          fileUrl: cloudFrontUrl,
+          fileUrl: url,
           fileSize: file.size,
           mimeType: file.type,
         });

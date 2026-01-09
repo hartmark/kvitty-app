@@ -8,11 +8,20 @@ interface UploadOptions {
 }
 
 interface UploadResult {
-  cloudFrontUrl: string;
+  url: string; // Public URL (CloudFront or /uploads/...)
   key: string;
 }
 
-export function useS3Upload() {
+/**
+ * Hook for uploading files to storage (S3 or local filesystem)
+ *
+ * Works with both storage providers:
+ * - S3: Uploads directly to S3 using presigned URL (PUT request)
+ * - Local: Uploads to API endpoint (POST request)
+ *
+ * @returns Object with upload function, loading state, and error state
+ */
+export function useFileUpload() {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,7 +31,7 @@ export function useS3Upload() {
       setError(null);
 
       try {
-        // Step 1: Get presigned URL via server action
+        // Step 1: Get upload URL via server action (presigned URL or API endpoint)
         const { presignedUrl, cloudFrontUrl, key } = await getPresignedUrl({
           filename: file.name,
           contentType: file.type,
@@ -30,9 +39,13 @@ export function useS3Upload() {
           fileSize: file.size,
         });
 
-        // Step 2: Upload directly to S3
+        // Step 2: Upload file
+        // For S3: presignedUrl is an https:// URL, use PUT
+        // For local: presignedUrl is a /api/upload endpoint, use POST
+        const isPresignedUrl = presignedUrl.startsWith("http");
+
         const uploadResponse = await fetch(presignedUrl, {
-          method: "PUT",
+          method: isPresignedUrl ? "PUT" : "POST",
           body: file,
           headers: {
             "Content-Type": file.type,
@@ -43,7 +56,8 @@ export function useS3Upload() {
           throw new Error("Failed to upload file to storage");
         }
 
-        return { cloudFrontUrl, key };
+        // Return public URL (cloudFrontUrl for S3, /uploads URL for local)
+        return { url: cloudFrontUrl, key };
       } catch (err) {
         const message = err instanceof Error ? err.message : "Upload failed";
         setError(message);
@@ -57,3 +71,9 @@ export function useS3Upload() {
 
   return { upload, isUploading, error };
 }
+
+/**
+ * @deprecated Use useFileUpload instead
+ * Kept for backward compatibility
+ */
+export const useS3Upload = useFileUpload;

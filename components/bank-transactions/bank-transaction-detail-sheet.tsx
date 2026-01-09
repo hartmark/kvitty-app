@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useS3Upload } from "@/lib/hooks/use-s3-upload";
+import { useFileUpload } from "@/lib/hooks/use-file-upload";
 import { Paperclip, ChatCircle, Trash, FilePdf, Image as ImageIcon, File, FileXls, FileCsv, Pencil } from "@phosphor-icons/react";
 import {
   Sheet,
@@ -50,7 +50,7 @@ export function BankTransactionDetailSheet({
 }: BankTransactionDetailSheetProps) {
   const router = useRouter();
   const utils = trpc.useUtils();
-  const { upload: s3Upload, isUploading } = useS3Upload();
+  const { upload: fileUpload, isUploading } = useFileUpload();
   const [comment, setComment] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -125,13 +125,13 @@ export function BankTransactionDetailSheet({
 
     try {
       const uploads = validFiles.map(async (file) => {
-        const { cloudFrontUrl } = await s3Upload(file, { workspaceSlug });
+        const { url } = await fileUpload(file, { workspaceSlug });
 
         await utils.client.attachments.create.mutate({
           workspaceId,
           bankTransactionId: transaction.id,
           fileName: file.name,
-          fileUrl: cloudFrontUrl,
+          fileUrl: url,
           fileSize: file.size,
           mimeType: file.type,
         });

@@ -27,7 +27,7 @@ import { generateAGIXml } from "@/lib/utils/agi-generator";
 import { decrypt } from "@/lib/utils/encryption";
 import { generateSalaryStatementPdf } from "@/lib/utils/salary-statement-pdf";
 import { sendSalaryStatementEmail } from "@/lib/email/send-salary-statement";
-import { uploadToS3 } from "@/lib/utils/s3";
+import { uploadFile } from "@/lib/storage";
 
 export const payrollRouter = router({
   listRuns: workspaceProcedure
@@ -790,11 +790,11 @@ export const payrollRouter = router({
         },
       });
 
-      // Upload PDF to S3
+      // Upload PDF
       const pdfBuffer = Buffer.from(pdfDoc.output("arraybuffer") as ArrayBuffer);
       const filename = `salary-statement-${entry.payrollRun.period}-${entry.employee.id}.pdf`;
 
-      const { cloudFrontUrl } = await uploadToS3(
+      const { url } = await uploadFile(
         pdfBuffer,
         filename,
         "application/pdf",
@@ -813,7 +813,7 @@ export const payrollRouter = router({
         const [updated] = await ctx.db
           .update(salaryStatements)
           .set({
-            pdfUrl: cloudFrontUrl,
+            pdfUrl: url,
           })
           .where(eq(salaryStatements.id, existingStatement.id))
           .returning();
@@ -826,7 +826,7 @@ export const payrollRouter = router({
             payrollEntryId: input.payrollEntryId,
             employeeId: entry.employeeId,
             period: entry.payrollRun.period,
-            pdfUrl: cloudFrontUrl,
+            pdfUrl: url,
           })
           .returning();
         statementId = statement.id;
@@ -857,7 +857,7 @@ export const payrollRouter = router({
 
       return {
         statementId,
-        pdfUrl: cloudFrontUrl,
+        pdfUrl: url,
         emailSent: input.sendEmail && !!entry.employee.email,
       };
     }),
@@ -934,11 +934,11 @@ export const payrollRouter = router({
             },
           });
 
-          // Upload PDF to S3
+          // Upload PDF
           const pdfBuffer = Buffer.from(pdfDoc.output("arraybuffer") as ArrayBuffer);
           const filename = `salary-statement-${run.period}-${entry.employee.id}.pdf`;
 
-          const { cloudFrontUrl } = await uploadToS3(
+          const { url } = await uploadFile(
             pdfBuffer,
             filename,
             "application/pdf",
@@ -956,7 +956,7 @@ export const payrollRouter = router({
             const [updated] = await ctx.db
               .update(salaryStatements)
               .set({
-                pdfUrl: cloudFrontUrl,
+                pdfUrl: url,
               })
               .where(eq(salaryStatements.id, existingStatement.id))
               .returning();
@@ -968,7 +968,7 @@ export const payrollRouter = router({
                 payrollEntryId: entry.id,
                 employeeId: entry.employeeId,
                 period: run.period,
-                pdfUrl: cloudFrontUrl,
+                pdfUrl: url,
               })
               .returning();
             statementId = statement.id;
@@ -1004,7 +1004,7 @@ export const payrollRouter = router({
             employeeId: entry.employeeId,
             employeeName: `${entry.employee.firstName} ${entry.employee.lastName}`,
             statementId,
-            pdfUrl: cloudFrontUrl,
+            pdfUrl: url,
             emailSent,
           });
         } catch (error) {
