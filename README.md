@@ -303,4 +303,4 @@ See [LICENSE](LICENSE) for more information.
 
 ## Contributing
 
-This is a proof-of-concept/fun project. For production code, see [sajn.se](https://sajn.se) - a digital signing service developed by sajn-se org.
+This is a proof-of-concept/fun project. The same company behind Kvitty also develops [sajn.se](https://sajn.se) - a digital signing service (different brand/product).
