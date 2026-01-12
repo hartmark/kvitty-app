@@ -73,6 +73,33 @@ export async function POST(req: Request) {
     return Response.json(object);
   } catch (error) {
     console.error("Chat API error:", error);
+
+    // Handle JSON validation failures from Groq
+    if (
+      error instanceof Error &&
+      error.message.includes("Failed to generate JSON")
+    ) {
+      // Extract the failed generation from the error if available
+      const apiError = error as Error & {
+        data?: { error?: { failed_generation?: string } };
+      };
+      const failedGeneration = apiError.data?.error?.failed_generation;
+
+      // Return the failed generation as a message if available
+      if (failedGeneration) {
+        return Response.json({
+          message: failedGeneration,
+          suggestion: null,
+        });
+      }
+
+      return Response.json({
+        message:
+          "Jag kunde inte bearbeta din förfrågan just nu. Försök igen med en mer specifik fråga.",
+        suggestion: null,
+      });
+    }
+
     return new Response("Internal Server Error", { status: 500 });
   }
 }
