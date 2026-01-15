@@ -8,8 +8,14 @@ import {
   createBankTransactionsSchema,
   updateBankTransactionSchema,
 } from "@/lib/validations/bank-transaction";
+import {
+  csvFieldMappingSchema,
+  csvConfigSchema,
+} from "@/lib/validations/csv-import";
 import { bankTransactionModel } from "@/lib/ai";
 import { parseCSV, parseOFX, detectFileFormat } from "@/lib/utils/bank-import";
+import { parseRawCsv, applyMapping, getSampleValue, decodeBase64Content } from "@/lib/utils/csv-parser";
+import { detectCsvFieldMapping } from "@/lib/ai/csv-field-detection";
 import { parseSIE4, normalizeSIE4ToTransactions, filterBankAccountTransactions, isSIEFile } from "@/lib/utils/sie-import";
 import { generateTransactionHash, checkExistingHashes, createHashInput } from "@/lib/utils/transaction-hash";
 import {
@@ -928,6 +934,527 @@ ${input.content}`,
       return {
         updated: updated.length,
         transactions: updated,
+      };
+    }),
+
+  // CSV Import procedures
+
+  parseAndPreviewCsv: workspaceProcedure
+    .input(
+      z.object({
+        workspaceId: z.string(),
+        fileContent: z.string(),
+        fileName: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const content = decodeBase64Content(input.fileContent);
+      const parseResult = parseRawCsv(content);
+
+      if (parseResult.headers.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "CSV-filen verkar vara tom eller har ogiltigt format",
+        });
+      }
+
+      // Get sample values for each column
+      const sampleValues: Record<number, string[]> = {};
+      for (let i = 0; i < parseResult.headers.length; i++) {
+        sampleValues[i] = getSampleValue(parseResult.rows, i, 3);
+      }
+
+      return {
+        separator: parseResult.separator,
+        headers: parseResult.headers,
+        sampleRows: parseResult.rows.slice(0, 10), // First 10 rows for preview
+        sampleValues,
+        totalRows: parseResult.totalRows,
+        hasHeaderRow: parseResult.hasHeaderRow,
+        skipRows: parseResult.skipRows,
+      };
+    }),
+
+  detectCsvMapping: workspaceProcedure
+    .input(
+      z.object({
+        workspaceId: z.string(),
+        headers: z.array(z.string()),
+        sampleRows: z.array(z.array(z.string())),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Check AI usage limit
+      try {
+        await checkAndIncrementAIUsage(ctx.session.user.id);
+      } catch (error) {
+        if (error instanceof AIRateLimitError) {
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message:
+              "Du har nått din månatliga gräns för AI-förfrågningar (50 st). Gränsen återställs den 1:a nästa månad.",
+          });
+        }
+        throw error;
+      }
+
+      // Detect field mappings using AI
+      const result = await detectCsvFieldMapping(input.headers, input.sampleRows);
+
+      return result;
+    }),
+
+  previewCsvTransactions: workspaceProcedure
+    .input(
+      z.object({
+        workspaceId: z.string(),
+        fileContent: z.string(),
+        mapping: csvFieldMappingSchema,
+        config: csvConfigSchema.optional(),
+        limit: z.number().default(100),
+        offset: z.number().default(0),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const content = decodeBase64Content(input.fileContent);
+      const parseResult = parseRawCsv(content);
+      const config = input.config ?? {
+        separator: ";",
+        hasHeaderRow: true,
+        skipRows: 0,
+        decimalSeparator: "," as const,
+      };
+
+      // Apply mapping to all rows
+      const allParsed = parseResult.rows.map((row, index) => {
+        const parsed = applyMapping(row, input.mapping, config);
+        return {
+          rowIndex: index,
+          rawValues: row,
+          parsed: {
+            accountingDate: parsed.accountingDate,
+            amount: parsed.amount,
+            reference: parsed.reference,
+            bookedBalance: parsed.bookedBalance,
+          },
+          validationErrors: parsed.validationErrors,
+        };
+      });
+
+      // Filter valid transactions for duplicate checking
+      const validTransactions = allParsed.filter(
+        (t) => t.parsed.accountingDate && t.parsed.amount !== null && t.validationErrors.length === 0
+      );
+
+      // Check for existing transactions by date+amount (simpler duplicate detection)
+      const dateAmountPairs = validTransactions.map((t) => ({
+        date: t.parsed.accountingDate!,
+        amount: t.parsed.amount!.toFixed(2),
+      }));
+
+      const orConditions = dateAmountPairs.map((pair) =>
+        and(
+          eq(bankTransactions.accountingDate, pair.date),
+          eq(bankTransactions.amount, pair.amount)
+        )
+      );
+
+      const existingTransactions = orConditions.length > 0
+        ? await ctx.db.query.bankTransactions.findMany({
+            where: and(
+              eq(bankTransactions.workspaceId, ctx.workspaceId),
+              or(...orConditions)
+            ),
+            columns: {
+              id: true,
+              accountingDate: true,
+              amount: true,
+              reference: true,
+            },
+            limit: 500,
+          })
+        : [];
+
+      // Build duplicate map by date+amount
+      const duplicateMap = new Map<number, {
+        isDuplicate: boolean;
+        matches: Array<{
+          transactionId: string;
+          accountingDate: string | null;
+          amount: string | null;
+          reference: string | null;
+        }>;
+      }>();
+
+      for (const t of validTransactions) {
+        const matches = existingTransactions
+          .filter((e) =>
+            e.accountingDate === t.parsed.accountingDate &&
+            parseFloat(e.amount!) === t.parsed.amount
+          )
+          .map((e) => ({
+            transactionId: e.id,
+            accountingDate: e.accountingDate,
+            amount: e.amount,
+            reference: e.reference,
+          }));
+
+        duplicateMap.set(t.rowIndex, {
+          isDuplicate: matches.length > 0,
+          matches,
+        });
+      }
+
+      // Build final result with pagination
+      const paginatedRows = allParsed.slice(input.offset, input.offset + input.limit);
+
+      const transactions = paginatedRows.map((row) => {
+        const duplicateInfo = duplicateMap.get(row.rowIndex);
+        const isValid = row.validationErrors.length === 0 &&
+          row.parsed.accountingDate !== null &&
+          row.parsed.amount !== null;
+        const isSelected = isValid && !duplicateInfo?.isDuplicate;
+
+        return {
+          rowIndex: row.rowIndex,
+          rawValues: row.rawValues,
+          parsed: row.parsed,
+          isDuplicate: duplicateInfo?.isDuplicate ?? false,
+          duplicateMatches: duplicateInfo?.matches,
+          validationErrors: row.validationErrors,
+          isSelected,
+        };
+      });
+
+      // Count stats
+      let validCount = 0;
+      let duplicateCount = 0;
+      let errorCount = 0;
+
+      for (const row of allParsed) {
+        if (row.validationErrors.length > 0) {
+          errorCount++;
+        } else if (duplicateMap.get(row.rowIndex)?.isDuplicate) {
+          duplicateCount++;
+        } else {
+          validCount++;
+        }
+      }
+
+      return {
+        transactions,
+        total: allParsed.length,
+        validCount,
+        duplicateCount,
+        errorCount,
+      };
+    }),
+
+  // New endpoint that accepts pre-parsed transactions (no file content)
+  importParsedTransactions: workspaceProcedure
+    .input(
+      z.object({
+        workspaceId: z.string(),
+        bankAccountId: z.string().optional(),
+        fileName: z.string(),
+        transactions: z.array(
+          z.object({
+            accountingDate: z.string(),
+            amount: z.number(),
+            reference: z.string().nullable(),
+            bookedBalance: z.number().nullable(),
+          })
+        ),
+        // If true, skip intra-batch duplicate detection (user explicitly selected duplicates)
+        allowIntraBatchDuplicates: z.boolean().optional().default(false),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Verify bank account if provided
+      if (input.bankAccountId) {
+        const bankAccount = await ctx.db.query.bankAccounts.findFirst({
+          where: and(
+            eq(bankAccounts.id, input.bankAccountId),
+            eq(bankAccounts.workspaceId, ctx.workspaceId)
+          ),
+        });
+
+        if (!bankAccount) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Ogiltigt bankkonto",
+          });
+        }
+      }
+
+      if (input.transactions.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Inga transaktioner att importera",
+        });
+      }
+
+      // Create import batch
+      const [importBatch] = await ctx.db
+        .insert(bankImportBatches)
+        .values({
+          workspaceId: ctx.workspaceId,
+          bankAccountId: input.bankAccountId ?? null,
+          fileName: input.fileName,
+          fileFormat: "csv",
+          status: "processing",
+          totalTransactions: input.transactions.length,
+          createdBy: ctx.session.user.id,
+        })
+        .returning();
+
+      // Generate hashes for duplicate detection
+      const transactionsWithHashes = input.transactions.map((t) => {
+        const hashInput = createHashInput(t.accountingDate, t.amount, t.reference ?? "");
+        return {
+          ...t,
+          hash: hashInput ? generateTransactionHash(hashInput) : null,
+        };
+      });
+
+      // Check existing hashes
+      const validHashes = transactionsWithHashes
+        .filter((t) => t.hash !== null)
+        .map((t) => t.hash as string);
+
+      const existingHashMap = validHashes.length > 0
+        ? await checkExistingHashes(ctx.workspaceId, validHashes)
+        : new Map<string, string>();
+
+      // Filter out duplicates
+      // - Always filter database duplicates (transactions that already exist)
+      // - Only filter intra-batch duplicates if allowIntraBatchDuplicates is false
+      const seenHashes = new Set<string>();
+      const newTransactions = transactionsWithHashes.filter((t) => {
+        if (!t.hash) return true;
+
+        // Always skip if already in database
+        if (existingHashMap.has(t.hash)) return false;
+
+        // Skip intra-batch duplicates only if not allowed
+        if (!input.allowIntraBatchDuplicates && seenHashes.has(t.hash)) return false;
+
+        seenHashes.add(t.hash);
+        return true;
+      });
+
+      const duplicatesSkipped = input.transactions.length - newTransactions.length;
+      let importedCount = 0;
+
+      if (newTransactions.length > 0) {
+        const importedAt = new Date();
+
+        const created = await ctx.db
+          .insert(bankTransactions)
+          .values(
+            newTransactions.map((t) => ({
+              workspaceId: ctx.workspaceId,
+              bankAccountId: input.bankAccountId ?? null,
+              importBatchId: importBatch.id,
+              accountingDate: t.accountingDate,
+              reference: t.reference ?? null,
+              amount: t.amount.toString(),
+              bookedBalance: t.bookedBalance?.toString() ?? null,
+              status: "pending" as const,
+              hash: t.hash,
+              importedAt,
+              createdBy: ctx.session.user.id,
+            }))
+          )
+          .returning();
+
+        importedCount = created.length;
+
+        await ctx.db.insert(auditLogs).values(
+          created.map((v) => ({
+            workspaceId: ctx.workspaceId,
+            userId: ctx.session.user.id,
+            action: "create",
+            entityType: "bank_transaction",
+            entityId: v.id,
+            changes: { after: v, imported: true, source: "csv" },
+          }))
+        );
+      }
+
+      await ctx.db
+        .update(bankImportBatches)
+        .set({
+          status: "completed",
+          importedTransactions: importedCount,
+          duplicateTransactions: duplicatesSkipped,
+        })
+        .where(eq(bankImportBatches.id, importBatch.id));
+
+      return {
+        imported: importedCount,
+        duplicatesSkipped,
+        errors: 0,
+        batchId: importBatch.id,
+      };
+    }),
+
+  // Legacy endpoint (kept for backwards compatibility)
+  importCsvTransactions: workspaceProcedure
+    .input(
+      z.object({
+        workspaceId: z.string(),
+        bankAccountId: z.string().optional(),
+        fileContent: z.string(),
+        fileName: z.string(),
+        mapping: csvFieldMappingSchema,
+        config: csvConfigSchema.optional(),
+        selectedRows: z.array(z.number()),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Verify bank account if provided
+      if (input.bankAccountId) {
+        const bankAccount = await ctx.db.query.bankAccounts.findFirst({
+          where: and(
+            eq(bankAccounts.id, input.bankAccountId),
+            eq(bankAccounts.workspaceId, ctx.workspaceId)
+          ),
+        });
+
+        if (!bankAccount) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Ogiltigt bankkonto",
+          });
+        }
+      }
+
+      const content = decodeBase64Content(input.fileContent);
+      const parseResult = parseRawCsv(content);
+      const config = input.config ?? {
+        separator: ";",
+        hasHeaderRow: true,
+        skipRows: 0,
+        decimalSeparator: "," as const,
+      };
+
+      // Get and parse selected rows
+      const selectedRowSet = new Set(input.selectedRows);
+      const rowsToImport = parseResult.rows.filter((_, index) => selectedRowSet.has(index));
+
+      if (rowsToImport.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Inga rader valda för import",
+        });
+      }
+
+      const parsedTransactions = rowsToImport
+        .map((row) => applyMapping(row, input.mapping, config))
+        .filter((t) => t.accountingDate && t.amount !== null && t.validationErrors.length === 0);
+
+      if (parsedTransactions.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Inga giltiga transaktioner att importera",
+        });
+      }
+
+      // Create import batch
+      const [importBatch] = await ctx.db
+        .insert(bankImportBatches)
+        .values({
+          workspaceId: ctx.workspaceId,
+          bankAccountId: input.bankAccountId ?? null,
+          fileName: input.fileName,
+          fileFormat: "csv",
+          status: "processing",
+          totalTransactions: parsedTransactions.length,
+          createdBy: ctx.session.user.id,
+        })
+        .returning();
+
+      // Generate hashes for duplicate detection
+      const transactionsWithHashes = parsedTransactions.map((t) => {
+        const hashInput = createHashInput(t.accountingDate!, t.amount!, t.reference ?? "");
+        return {
+          ...t,
+          hash: hashInput ? generateTransactionHash(hashInput) : null,
+        };
+      });
+
+      // Check existing hashes
+      const validHashes = transactionsWithHashes
+        .filter((t) => t.hash !== null)
+        .map((t) => t.hash as string);
+
+      const existingHashMap = validHashes.length > 0
+        ? await checkExistingHashes(ctx.workspaceId, validHashes)
+        : new Map<string, string>();
+
+      // Filter out duplicates (both from DB and within batch)
+      const seenHashes = new Set<string>();
+      const newTransactions = transactionsWithHashes.filter((t) => {
+        if (!t.hash) return true;
+        if (existingHashMap.has(t.hash) || seenHashes.has(t.hash)) return false;
+        seenHashes.add(t.hash);
+        return true;
+      });
+
+      const duplicatesSkipped = parsedTransactions.length - newTransactions.length;
+      let importedCount = 0;
+
+      if (newTransactions.length > 0) {
+        const importedAt = new Date();
+
+        const created = await ctx.db
+          .insert(bankTransactions)
+          .values(
+            newTransactions.map((t) => ({
+              workspaceId: ctx.workspaceId,
+              bankAccountId: input.bankAccountId ?? null,
+              importBatchId: importBatch.id,
+              accountingDate: t.accountingDate,
+              reference: t.reference ?? null,
+              amount: t.amount!.toString(),
+              bookedBalance: t.bookedBalance?.toString() ?? null,
+              status: "pending" as const,
+              hash: t.hash,
+              importedAt,
+              createdBy: ctx.session.user.id,
+            }))
+          )
+          .returning();
+
+        importedCount = created.length;
+
+        await ctx.db.insert(auditLogs).values(
+          created.map((v) => ({
+            workspaceId: ctx.workspaceId,
+            userId: ctx.session.user.id,
+            action: "create",
+            entityType: "bank_transaction",
+            entityId: v.id,
+            changes: { after: v, imported: true, source: "csv" },
+          }))
+        );
+      }
+
+      await ctx.db
+        .update(bankImportBatches)
+        .set({
+          status: "completed",
+          importedTransactions: importedCount,
+          duplicateTransactions: duplicatesSkipped,
+        })
+        .where(eq(bankImportBatches.id, importBatch.id));
+
+      return {
+        imported: importedCount,
+        duplicatesSkipped,
+        errors: 0,
+        batchId: importBatch.id,
       };
     }),
 });

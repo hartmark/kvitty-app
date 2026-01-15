@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQueryState, parseAsInteger, parseAsString, parseAsStringLiteral } from "nuqs";
-import { Swap, MagnifyingGlass, X, FunnelSimple } from "@phosphor-icons/react";
+import { Swap, MagnifyingGlass, X, FunnelSimple, Upload } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,6 +21,7 @@ import { trpc } from "@/lib/trpc/client";
 import { useWorkspace } from "@/components/workspace-provider";
 import { BankTransactionsTable } from "@/components/bank-transactions/bank-transactions-table";
 import { AddBankTransactionButton } from "@/components/bank-transactions/add-bank-transaction-button";
+import { CsvImportWizard } from "@/components/bank-transactions/csv-import-wizard";
 
 interface TransactionsPageClientProps {
   workspaceSlug: string;
@@ -77,6 +78,9 @@ export function TransactionsPageClient({
 
   // Local state for search input (for debouncing)
   const [searchInput, setSearchInput] = useState(search);
+
+  // CSV import wizard state
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
 
   // Sync URL search state to local input (for browser back/forward, bookmarks)
   useEffect(() => {
@@ -187,7 +191,13 @@ export function TransactionsPageClient({
               Alla banktransaktioner i bolaget
             </p>
           </div>
-          <AddBankTransactionButton workspaceId={workspace.id} />
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setCsvImportOpen(true)}>
+              <Upload className="size-4 mr-2" />
+              Importera CSV
+            </Button>
+            <AddBankTransactionButton workspaceId={workspace.id} />
+          </div>
         </div>
 
         {/* Filters */}
@@ -328,6 +338,13 @@ export function TransactionsPageClient({
           />
         )}
       </div>
+
+      {/* CSV Import Wizard */}
+      <CsvImportWizard
+        workspaceId={workspace.id}
+        open={csvImportOpen}
+        onOpenChange={setCsvImportOpen}
+      />
     </>
   );
 }
