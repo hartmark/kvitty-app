@@ -7,6 +7,7 @@ import { commentsRouter } from "./routers/comments";
 import { invitesRouter } from "./routers/invites";
 import { membersRouter } from "./routers/members";
 import { usersRouter } from "./routers/users";
+import { notificationsRouter } from "./routers/notifications";
 // Full bookkeeping routers
 import { bankAccountsRouter } from "./routers/bank-accounts";
 import { journalEntriesRouter } from "./routers/journal-entries";
@@ -33,6 +34,7 @@ export const appRouter = router({
   invites: invitesRouter,
   members: membersRouter,
   users: usersRouter,
+  notifications: notificationsRouter,
   // Full bookkeeping routers
   bankAccounts: bankAccountsRouter,
   journalEntries: journalEntriesRouter,

@@ -390,6 +390,30 @@ export const inboxAttachmentLinks = pgTable(
   ]
 );
 
+// Notifications for users (workspace-scoped)
+export const notifications = pgTable("notifications", {
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  workspaceId: text("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+
+  // Content
+  type: text("type").notNull(), // "comment_mention", "inbox_email", etc.
+  title: text("title").notNull(),
+  message: text("message"),
+  link: text("link"), // Optional link to related entity
+
+  // Read tracking (null = unread)
+  readAt: timestamp("read_at"),
+
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const fiscalPeriods = pgTable(
   "fiscal_periods",
   {
@@ -922,6 +946,7 @@ export const userRelations = relations(user, ({ many }) => ({
   workspaceAllowedEmails: many(workspaceAllowedEmails),
   inboxAttachmentLinks: many(inboxAttachmentLinks),
   aiUsage: many(aiUsage),
+  notifications: many(notifications),
 }));
 
 export const aiUsageRelations = relations(aiUsage, ({ one }) => ({
@@ -968,6 +993,8 @@ export const workspacesRelations = relations(workspaces, ({ one, many }) => ({
   allowedEmails: many(workspaceAllowedEmails),
   inboxEmails: many(inboxEmails),
   inboxAttachments: many(inboxAttachments),
+  // Notifications
+  notifications: many(notifications),
   // NE-bilaga for enskild firma
   nebilagaEntries: many(nebilagaEntries),
 }));
@@ -1076,6 +1103,17 @@ export const inboxAttachmentLinksRelations = relations(
     }),
   })
 );
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(user, {
+    fields: [notifications.userId],
+    references: [user.id],
+  }),
+  workspace: one(workspaces, {
+    fields: [notifications.workspaceId],
+    references: [workspaces.id],
+  }),
+}));
 
 export const fiscalPeriodsRelations = relations(
   fiscalPeriods,
