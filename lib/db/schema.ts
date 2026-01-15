@@ -583,6 +583,7 @@ export const comments = pgTable("comments", {
   journalEntryId: text("journal_entry_id")
     .references(() => journalEntries.id, { onDelete: "cascade" }),
   content: text("content").notNull(),
+  mentions: jsonb("mentions").$type<string[]>(), // Array of userIds mentioned
   createdAt: timestamp("created_at").defaultNow().notNull(),
   createdBy: text("created_by")
     .notNull()

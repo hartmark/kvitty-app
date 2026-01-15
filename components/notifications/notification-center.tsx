@@ -29,7 +29,7 @@ export function NotificationCenter() {
   const { data: unreadCount = 0 } = trpc.notifications.getUnreadCount.useQuery(
     { workspaceId },
     {
-      refetchInterval: 10000, // 10 seconds
+      refetchInterval: 30000, // 30 seconds
       refetchOnWindowFocus: true,
     }
   );
