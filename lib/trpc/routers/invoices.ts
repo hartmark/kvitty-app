@@ -2147,4 +2147,160 @@ export const invoicesRouter = router({
         sentTo: recipientEmail,
       };
     }),
+
+  // Get recent invoices for a customer (for "copy from previous" feature)
+  getCustomerInvoices: workspaceProcedure
+    .input(
+      z.object({
+        customerId: z.string(),
+        limit: z.number().min(1).max(10).default(5),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const invoiceList = await ctx.db.query.invoices.findMany({
+        where: and(
+          eq(invoices.workspaceId, ctx.workspaceId),
+          eq(invoices.customerId, input.customerId)
+        ),
+        with: {
+          lines: {
+            orderBy: (l, { asc }) => [asc(l.sortOrder)],
+          },
+        },
+        orderBy: [desc(invoices.invoiceDate), desc(invoices.invoiceNumber)],
+        limit: input.limit,
+      });
+
+      return invoiceList;
+    }),
+
+  // Duplicate an invoice (creates a new draft from existing invoice)
+  duplicate: workspaceProcedure
+    .input(
+      z.object({
+        sourceInvoiceId: z.string(),
+        customerId: z.string().optional(), // Optional: use same customer if not specified
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Fetch source invoice with lines
+      const source = await ctx.db.query.invoices.findFirst({
+        where: and(
+          eq(invoices.id, input.sourceInvoiceId),
+          eq(invoices.workspaceId, ctx.workspaceId)
+        ),
+        with: {
+          lines: {
+            orderBy: (l, { asc }) => [asc(l.sortOrder)],
+          },
+        },
+      });
+
+      if (!source) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Källfaktura hittades inte" });
+      }
+
+      // Use provided customerId or source's customerId
+      const customerId = input.customerId || source.customerId;
+
+      // Verify customer exists and belongs to workspace
+      const customer = await ctx.db.query.customers.findFirst({
+        where: and(
+          eq(customers.id, customerId),
+          eq(customers.workspaceId, ctx.workspaceId)
+        ),
+      });
+
+      if (!customer) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Kund hittades inte" });
+      }
+
+      // Get workspace defaults
+      const workspace = await ctx.db.query.workspaces.findFirst({
+        where: eq(workspaces.id, ctx.workspaceId),
+      });
+
+      // Get next invoice number
+      const result = await ctx.db
+        .select({ maxNumber: sql<number>`COALESCE(MAX(${invoices.invoiceNumber}), 0)` })
+        .from(invoices)
+        .where(eq(invoices.workspaceId, ctx.workspaceId));
+
+      const invoiceNumber = (result[0]?.maxNumber || 0) + 1;
+
+      // Calculate dates
+      const today = new Date().toISOString().split("T")[0];
+      const paymentTermsDays = source.paymentTermsDays || workspace?.paymentTermsDays || 30;
+      const dueDate = new Date(Date.now() + paymentTermsDays * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+
+      // Generate OCR number if workspace has it enabled
+      let ocrNumber: string | null = null;
+      if (workspace?.addOcrNumber) {
+        ocrNumber = generateOcrWithCheckDigit(invoiceNumber);
+      }
+
+      // Create new invoice (copy most settings from source)
+      const [newInvoice] = await ctx.db
+        .insert(invoices)
+        .values({
+          workspaceId: ctx.workspaceId,
+          customerId,
+          fiscalPeriodId: null, // Don't copy period, user should select
+          invoiceNumber,
+          invoiceDate: today,
+          dueDate,
+          reference: source.reference,
+          subtotal: source.subtotal,
+          vatAmount: source.vatAmount,
+          total: source.total,
+          status: "draft",
+          // Copy settings from source
+          deliveryTerms: source.deliveryTerms,
+          latePaymentInterest: source.latePaymentInterest,
+          paymentTermsDays: source.paymentTermsDays,
+          paymentMethod: source.paymentMethod,
+          paymentAccount: source.paymentAccount,
+          customNotes: source.customNotes,
+          deliveryMethod: source.deliveryMethod,
+          // Compliance settings (ROT/RUT, reverse charge)
+          isReverseCharge: source.isReverseCharge,
+          rotRutType: source.rotRutType,
+          rotRutLaborAmount: source.rotRutLaborAmount,
+          rotRutMaterialAmount: source.rotRutMaterialAmount,
+          rotRutDeductionAmount: source.rotRutDeductionAmount,
+          rotRutDeductionManualOverride: source.rotRutDeductionManualOverride,
+          // Margin scheme
+          marginSchemeCategory: source.marginSchemeCategory,
+          // New OCR
+          ocrNumber,
+          // Don't copy: share token, journal entries, view tracking, sent info
+        })
+        .returning();
+
+      // Copy all lines from source
+      if (source.lines.length > 0) {
+        await ctx.db.insert(invoiceLines).values(
+          source.lines.map((line, index) => ({
+            invoiceId: newInvoice.id,
+            productId: line.productId,
+            lineType: line.lineType,
+            description: line.description,
+            quantity: line.quantity,
+            unit: line.unit,
+            unitPrice: line.unitPrice,
+            vatRate: line.vatRate,
+            amount: line.amount,
+            productType: line.productType,
+            isLabor: line.isLabor,
+            isMaterial: line.isMaterial,
+            purchasePrice: line.purchasePrice,
+            sortOrder: index,
+          }))
+        );
+      }
+
+      return newInvoice;
+    }),
 });

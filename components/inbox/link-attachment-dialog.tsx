@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MagnifyingGlass, WarningCircle, CalendarBlank } from "@phosphor-icons/react";
 import {
   Dialog,
@@ -37,7 +37,8 @@ export function LinkAttachmentDialog({
   workspaceId,
   workspaceMode,
 }: Props) {
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<"verifications" | "transactions">(
     workspaceMode === "full_bookkeeping" ? "verifications" : "transactions"
   );
@@ -47,13 +48,27 @@ export function LinkAttachmentDialog({
   // Get the most recent period for verifications
   const latestPeriod = periods.length > 0 ? periods[0] : null;
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput.trim() || undefined);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   // Fetch both transactions and verifications regardless of workspace mode
+  // When searching, search across all records. When not searching, show 20 latest.
   const {
     data: bankTransactionsData,
     isLoading: isLoadingTransactions,
     error: transactionsError,
   } = trpc.bankTransactions.list.useQuery(
-    { workspaceId, limit: 100 },
+    {
+      workspaceId,
+      limit: 20,
+      search: debouncedSearch,
+    },
     { enabled: open }
   );
 
@@ -64,7 +79,12 @@ export function LinkAttachmentDialog({
     isLoading: isLoadingEntries,
     error: entriesError,
   } = trpc.journalEntries.list.useQuery(
-    { workspaceId, fiscalPeriodId: latestPeriod?.id ?? "" },
+    {
+      workspaceId,
+      fiscalPeriodId: latestPeriod?.id ?? "",
+      limit: 20,
+      search: debouncedSearch,
+    },
     { enabled: open && !!latestPeriod }
   );
 
@@ -80,19 +100,6 @@ export function LinkAttachmentDialog({
       toast.error(error.message || "Kunde inte koppla bilagan");
     },
   });
-
-  // Filter items based on search
-  const filteredTransactions = bankTransactions?.filter(
-    (t) =>
-      t.reference?.toLowerCase().includes(search.toLowerCase()) ||
-      t.amount?.toString().includes(search)
-  );
-
-  const filteredEntries = journalEntries?.filter(
-    (e: { description: string; verificationNumber: number }) =>
-      e.description?.toLowerCase().includes(search.toLowerCase()) ||
-      e.verificationNumber?.toString().includes(search)
-  );
 
   const handleLink = (id: string, type: "verification" | "transaction") => {
     linkMutation.mutate({
@@ -130,8 +137,8 @@ export function LinkAttachmentDialog({
             <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
               placeholder={`Sök ${activeTab === "verifications" ? "verifikationer" : "transaktioner"}...`}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="pl-9"
             />
           </div>
@@ -161,13 +168,13 @@ export function LinkAttachmentDialog({
                   Gå till perioder
                 </a>
               </div>
-            ) : filteredEntries?.length === 0 ? (
+            ) : journalEntries?.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
-                Inga verifikationer hittades
+                {debouncedSearch ? "Inga verifikationer hittades" : "Inga verifikationer"}
               </p>
             ) : (
               <div className="space-y-2">
-                {filteredEntries?.slice(0, 20).map((entry: { id: string; verificationNumber: number; entryDate: string; description: string }) => (
+                {journalEntries?.map((entry: { id: string; verificationNumber: number; entryDate: string; description: string }) => (
                   <button
                     key={entry.id}
                     onClick={() => handleLink(entry.id, "verification")}
@@ -190,9 +197,9 @@ export function LinkAttachmentDialog({
                     </p>
                   </button>
                 ))}
-                {(filteredEntries?.length ?? 0) > 20 && (
+                {debouncedSearch && (journalEntriesData?.total ?? 0) > 20 && (
                   <p className="text-xs text-muted-foreground text-center py-2">
-                    Visar 20 av {filteredEntries?.length} resultat. Använd sök för att hitta fler.
+                    Visar 20 av {journalEntriesData?.total} resultat. Använd sök för att hitta fler.
                   </p>
                 )}
               </div>
@@ -211,13 +218,13 @@ export function LinkAttachmentDialog({
               <div className="flex justify-center py-8">
                 <Spinner className="size-6" />
               </div>
-            ) : filteredTransactions?.length === 0 ? (
+            ) : bankTransactions?.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
-                Inga transaktioner hittades
+                {debouncedSearch ? "Inga transaktioner hittades" : "Inga transaktioner"}
               </p>
             ) : (
               <div className="space-y-2">
-                {filteredTransactions?.slice(0, 20).map((transaction) => (
+                {bankTransactions?.map((transaction) => (
                   <button
                     key={transaction.id}
                     onClick={() => handleLink(transaction.id, "transaction")}
@@ -245,9 +252,9 @@ export function LinkAttachmentDialog({
                     </p>
                   </button>
                 ))}
-                {(filteredTransactions?.length ?? 0) > 20 && (
+                {debouncedSearch && (bankTransactionsData?.total ?? 0) > 20 && (
                   <p className="text-xs text-muted-foreground text-center py-2">
-                    Visar 20 av {filteredTransactions?.length} resultat. Använd sök för att hitta fler.
+                    Visar 20 av {bankTransactionsData?.total} resultat. Använd sök för att hitta fler.
                   </p>
                 )}
               </div>

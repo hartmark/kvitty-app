@@ -54,7 +54,7 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { JournalEntryLineRow } from "./journal-entry-line-row";
-import { TemplateSelector } from "./template-selector";
+import { TemplateSelector, type SuggestedTemplate } from "./template-selector";
 import { TemplateInputForm } from "./template-input-form";
 import { AIChat } from "@/components/ai-chat";
 import { trpc } from "@/lib/trpc/client";
@@ -240,6 +240,19 @@ export function AddJournalEntryDialog({
   const { upload: fileUpload } = useFileUpload();
   const addAttachment = trpc.journalEntries.addAttachment.useMutation();
 
+  // Smart template suggestions
+  const directionFilter = getDirectionFilter();
+  const { data: smartSuggestions } = trpc.journalEntries.getSmartSuggestions.useQuery(
+    {
+      workspaceId,
+      direction: directionFilter === "all" ? undefined : directionFilter,
+      limit: 3,
+    },
+    {
+      enabled: open && step === 2,
+    }
+  );
+
   const uploadFiles = async (journalEntryId: string) => {
     let successCount = 0;
     const failedFiles: string[] = [];
@@ -417,6 +430,7 @@ export function AddJournalEntryDialog({
       description,
       entryType,
       sourceType: selectedTemplate ? "manual" : "manual",
+      templateId: selectedTemplate?.id,
       lines: validLines,
     });
   };
@@ -579,6 +593,7 @@ export function AddJournalEntryDialog({
                 onSelectTemplate={handleSelectTemplate}
                 onSelectManual={handleSelectManual}
                 onBack={() => setStep(1)}
+                suggestions={smartSuggestions as SuggestedTemplate[] | undefined}
               />
             )}
 

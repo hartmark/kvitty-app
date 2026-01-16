@@ -950,6 +950,10 @@ export const userRelations = relations(user, ({ many }) => ({
   inboxAttachmentLinks: many(inboxAttachmentLinks),
   aiUsage: many(aiUsage),
   notifications: many(notifications),
+  // Smart features
+  templateUsage: many(templateUsage),
+  csvImportProfiles: many(csvImportProfiles),
+  categorizationRules: many(categorizationRules),
 }));
 
 export const aiUsageRelations = relations(aiUsage, ({ one }) => ({
@@ -1000,6 +1004,10 @@ export const workspacesRelations = relations(workspaces, ({ one, many }) => ({
   notifications: many(notifications),
   // NE-bilaga for enskild firma
   nebilagaEntries: many(nebilagaEntries),
+  // Smart features
+  templateUsage: many(templateUsage),
+  csvImportProfiles: many(csvImportProfiles),
+  categorizationRules: many(categorizationRules),
 }));
 
 export const workspaceMembersRelations = relations(
@@ -1266,6 +1274,7 @@ export const bankAccountsRelations = relations(bankAccounts, ({ one, many }) => 
     references: [workspaces.id],
   }),
   bankTransactions: many(bankTransactions),
+  csvImportProfiles: many(csvImportProfiles),
 }));
 
 export const journalEntriesRelations = relations(
@@ -1441,6 +1450,147 @@ export const invoiceOpenLogsRelations = relations(invoiceOpenLogs, ({ one }) => 
 }));
 
 // ============================================
+// Smart Features Tables
+// ============================================
+
+// Template usage tracking for smart suggestions
+export const templateUsage = pgTable(
+  "template_usage",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createCuid()),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    templateId: text("template_id").notNull(),
+    usageCount: integer("usage_count").notNull().default(0),
+    lastUsedAt: timestamp("last_used_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [unique().on(table.workspaceId, table.userId, table.templateId)]
+);
+
+// CSV import profiles for one-click imports
+export const csvImportProfiles = pgTable("csv_import_profiles", {
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
+  workspaceId: text("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  bankAccountId: text("bank_account_id").references(() => bankAccounts.id, {
+    onDelete: "set null",
+  }),
+  name: text("name").notNull(),
+  mapping: jsonb("mapping").$type<{
+    accountingDate: number | null;
+    amount: number | null;
+    reference: number | null;
+    bookedBalance: number | null;
+  }>().notNull(),
+  csvConfig: jsonb("csv_config").$type<{
+    separator: string;
+    hasHeaderRow: boolean;
+    skipRows: number;
+    decimalSeparator: "," | ".";
+  }>().notNull(),
+  usageCount: integer("usage_count").notNull().default(0),
+  lastUsedAt: timestamp("last_used_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+});
+
+// Categorization rule condition types
+export const conditionTypeEnum = pgEnum("condition_type", [
+  "contains",
+  "equals",
+  "starts_with",
+  "ends_with",
+  "regex",
+  "amount_gt",
+  "amount_lt",
+  "amount_range",
+]);
+
+// Categorization rule action types
+export const ruleActionTypeEnum = pgEnum("rule_action_type", [
+  "suggest_template",
+  "suggest_account",
+  "auto_book",
+]);
+
+// Categorization rules for automatic template/account selection
+export const categorizationRules = pgTable("categorization_rules", {
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
+  workspaceId: text("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  priority: integer("priority").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  conditionType: conditionTypeEnum("condition_type").notNull(),
+  conditionValue: text("condition_value").notNull(),
+  actionType: ruleActionTypeEnum("action_type").notNull(),
+  actionValue: text("action_value").notNull(), // templateId or account number
+  usageCount: integer("usage_count").notNull().default(0),
+  lastMatchedAt: timestamp("last_matched_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+});
+
+// Smart Features Relations
+export const templateUsageRelations = relations(templateUsage, ({ one }) => ({
+  workspace: one(workspaces, {
+    fields: [templateUsage.workspaceId],
+    references: [workspaces.id],
+  }),
+  user: one(user, {
+    fields: [templateUsage.userId],
+    references: [user.id],
+  }),
+}));
+
+export const csvImportProfilesRelations = relations(
+  csvImportProfiles,
+  ({ one }) => ({
+    workspace: one(workspaces, {
+      fields: [csvImportProfiles.workspaceId],
+      references: [workspaces.id],
+    }),
+    bankAccount: one(bankAccounts, {
+      fields: [csvImportProfiles.bankAccountId],
+      references: [bankAccounts.id],
+    }),
+    createdByUser: one(user, {
+      fields: [csvImportProfiles.createdBy],
+      references: [user.id],
+    }),
+  })
+);
+
+export const categorizationRulesRelations = relations(
+  categorizationRules,
+  ({ one }) => ({
+    workspace: one(workspaces, {
+      fields: [categorizationRules.workspaceId],
+      references: [workspaces.id],
+    }),
+    createdByUser: one(user, {
+      fields: [categorizationRules.createdBy],
+      references: [user.id],
+    }),
+  })
+);
+
+// ============================================
 // Type Exports
 // ============================================
 
@@ -1534,3 +1684,15 @@ export type NewApiKey = typeof apiKeys.$inferInsert;
 
 export type AiUsage = typeof aiUsage.$inferSelect;
 export type NewAiUsage = typeof aiUsage.$inferInsert;
+
+// Smart Features Types
+export type TemplateUsage = typeof templateUsage.$inferSelect;
+export type NewTemplateUsage = typeof templateUsage.$inferInsert;
+
+export type CsvImportProfile = typeof csvImportProfiles.$inferSelect;
+export type NewCsvImportProfile = typeof csvImportProfiles.$inferInsert;
+
+export type CategorizationRule = typeof categorizationRules.$inferSelect;
+export type NewCategorizationRule = typeof categorizationRules.$inferInsert;
+export type ConditionType = (typeof conditionTypeEnum.enumValues)[number];
+export type RuleActionType = (typeof ruleActionTypeEnum.enumValues)[number];

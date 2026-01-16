@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useQueryState, parseAsString, parseAsInteger } from "nuqs";
+import { useDebounce } from "@/hooks/use-debounce";
 import Link from "next/link";
 import { Plus, FileText, CaretRight, CalendarBlank, MagnifyingGlass, X, Upload } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
@@ -95,20 +96,20 @@ export function BookkeepingPageClient({
 
   const currentPeriod = periods.find((p) => p.id === currentPeriodId);
 
+  // Debounced search input
+  const [searchInput, setSearchInput] = useDebounce(search, setSearch, {
+    onDebouncedChange: () => setPage(1),
+  });
+
   // Handle period change
   const handlePeriodChange = (newPeriodId: string) => {
     setPeriodId(newPeriodId);
     setPage(1);
     // Reset filters when changing period
+    setSearchInput("");
     setSearch("");
     setDateFrom("");
     setDateTo("");
-  };
-
-  // Handle filter changes - reset page when filters change
-  const handleSearchChange = (value: string) => {
-    setSearch(value);
-    setPage(1);
   };
 
   const handleDateFromChange = (value: string) => {
@@ -122,6 +123,7 @@ export function BookkeepingPageClient({
   };
 
   const clearFilters = () => {
+    setSearchInput("");
     setSearch("");
     setDateFrom("");
     setDateTo("");
@@ -235,8 +237,8 @@ export function BookkeepingPageClient({
                 id="search"
                 type="text"
                 placeholder="Sök på beskrivning eller verifikationsnummer..."
-                value={search}
-                onChange={(e) => handleSearchChange(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="pl-9"
               />
             </div>

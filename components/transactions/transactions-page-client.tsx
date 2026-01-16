@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQueryState, parseAsInteger, parseAsString, parseAsStringLiteral } from "nuqs";
-import { Swap, MagnifyingGlass, X, FunnelSimple, Upload } from "@phosphor-icons/react";
+import { useDebounce } from "@/hooks/use-debounce";
+import { Swap, MagnifyingGlass, X, FunnelSimple, Upload, Paperclip } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,6 +32,9 @@ const DEFAULT_PAGE_SIZE = 20;
 
 const quickFilterOptions = ["all", "last-month", "last-3-months", "last-year"] as const;
 type QuickFilter = (typeof quickFilterOptions)[number];
+
+const attachmentsFilterOptions = ["all", "with", "without"] as const;
+type AttachmentsFilter = (typeof attachmentsFilterOptions)[number];
 
 function getDateRangeForFilter(filter: QuickFilter): { dateFrom: string; dateTo: string } {
   const now = new Date();
@@ -72,32 +76,22 @@ export function TransactionsPageClient({
     "filter",
     parseAsStringLiteral(quickFilterOptions).withDefault("all")
   );
+  const [attachmentsFilter, setAttachmentsFilter] = useQueryState(
+    "attachments",
+    parseAsStringLiteral(attachmentsFilterOptions).withDefault("all")
+  );
   const [selectedId, setSelectedId] = useQueryState("selected", parseAsString.withDefault(""));
   const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
   const [pageSize, setPageSize] = useQueryState("pageSize", parseAsInteger.withDefault(DEFAULT_PAGE_SIZE));
 
-  // Local state for search input (for debouncing)
-  const [searchInput, setSearchInput] = useState(search);
-
   // CSV import wizard state
   const [csvImportOpen, setCsvImportOpen] = useState(false);
 
-  // Sync URL search state to local input (for browser back/forward, bookmarks)
-  useEffect(() => {
-    setSearchInput(search);
-  }, [search]);
-
-  // Debounced search - update URL after 300ms of no typing
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchInput !== search) {
-        setSearch(searchInput || null);
-        setPage(1);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchInput, search, setSearch, setPage]);
+  // Debounced search input
+  const [searchInput, setSearchInput] = useDebounce(search, setSearch, {
+    onDebouncedChange: () => setPage(1),
+    emptyAsNull: true,
+  });
 
   // Handle quick filter changes
   const handleQuickFilterChange = (filter: QuickFilter) => {
@@ -128,6 +122,12 @@ export function TransactionsPageClient({
     setPage(1);
   };
 
+  // Handle attachments filter
+  const handleAttachmentsFilterChange = (value: AttachmentsFilter) => {
+    setAttachmentsFilter(value === "all" ? null : value);
+    setPage(1);
+  };
+
   // Fetch bank accounts for filter dropdown
   const { data: bankAccounts } = trpc.bankAccounts.list.useQuery({
     workspaceId: workspace.id,
@@ -137,6 +137,7 @@ export function TransactionsPageClient({
   const { data, isLoading } = trpc.bankTransactions.list.useQuery({
     workspaceId: workspace.id,
     bankAccountId: bankAccountId || undefined,
+    hasAttachments: attachmentsFilter || undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
     search: search || undefined,
@@ -159,7 +160,7 @@ export function TransactionsPageClient({
     setPage(1);
   };
 
-  const hasFilters = search || dateFrom || dateTo || bankAccountId;
+  const hasFilters = search || dateFrom || dateTo || bankAccountId || attachmentsFilter;
 
   const clearAllFilters = () => {
     setSearchInput("");
@@ -167,6 +168,7 @@ export function TransactionsPageClient({
     setDateFrom(null);
     setDateTo(null);
     setBankAccountId(null);
+    setAttachmentsFilter(null);
     setQuickFilter("all");
     setPage(1);
   };
@@ -276,6 +278,21 @@ export function TransactionsPageClient({
                     {account.accountNumber} - {account.name}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={attachmentsFilter || "all"}
+              onValueChange={(v) => handleAttachmentsFilterChange(v as AttachmentsFilter)}
+            >
+              <SelectTrigger className="w-[180px]">
+                <Paperclip className="size-4 text-muted-foreground" />
+                <SelectValue placeholder="Bilagor" />
+              </SelectTrigger>
+              <SelectContent className="align-start">
+                <SelectItem value="all">Alla</SelectItem>
+                <SelectItem value="with">Med bilagor</SelectItem>
+                <SelectItem value="without">Inga bilagor</SelectItem>
               </SelectContent>
             </Select>
 

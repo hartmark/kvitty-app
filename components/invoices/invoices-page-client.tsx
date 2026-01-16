@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQueryState, parseAsInteger, parseAsString, parseAsStringLiteral, parseAsBoolean } from "nuqs";
 import { Plus, Funnel, BookOpen, CaretUpDown, Check } from "@phosphor-icons/react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -43,10 +45,15 @@ import { SendReminderDialog } from "@/components/invoices/send-reminder-dialog";
 import { generateInvoicePdf } from "@/lib/utils/invoice-pdf";
 import { useWorkspace } from "@/components/workspace-provider";
 import { InvoicesTable } from "@/components/invoices/invoices-table";
-import type { InvoiceStatus } from "@/lib/db/schema";
 
 const statusOptions = ["all", "draft", "sent", "paid"] as const;
 type StatusFilter = (typeof statusOptions)[number];
+
+const statusLabels: Record<Exclude<StatusFilter, "all">, string> = {
+  draft: "Utkast",
+  sent: "Publicerad",
+  paid: "Betald",
+};
 
 // Dialog state for bokföring confirmation
 type BokforingDialog =
@@ -68,6 +75,7 @@ const DEFAULT_PAGE_SIZE = 20;
 
 export function InvoicesPageClient() {
   const { workspace } = useWorkspace();
+  const router = useRouter();
 
   // URL state with nuqs
   const [statusFilter, setStatusFilter] = useQueryState(
@@ -143,6 +151,20 @@ export function InvoicesPageClient() {
 
   const createPaidVerification = trpc.invoices.createPaidVerification.useMutation({
     onSuccess: () => utils.invoices.list.invalidate({ workspaceId: workspace.id }),
+  });
+
+  const duplicateInvoice = trpc.invoices.duplicate.useMutation({
+    onSuccess: (newInvoice) => {
+      utils.invoices.list.invalidate({ workspaceId: workspace.id });
+      toast.success("Faktura duplicerad", {
+        description: `Ny faktura #${newInvoice.invoiceNumber} skapad som utkast.`,
+      });
+      // Navigate to the new invoice
+      router.push(`/${workspace.slug}/fakturor/${newInvoice.id}`);
+    },
+    onError: (error) => {
+      toast.error("Kunde inte duplicera faktura", { description: error.message });
+    },
   });
 
   // Handle confirmation dialog actions
@@ -300,14 +322,8 @@ export function InvoicesPageClient() {
         <div className="text-center py-12 text-muted-foreground">
           <p>
             {statusFilter === "all"
-              ? "Inga fakturor ännu"
-              : `Inga fakturor med status "${
-                  statusFilter === "draft"
-                    ? "Utkast"
-                    : statusFilter === "sent"
-                    ? "Publicerad"
-                    : "Betald"
-                }"`}
+              ? "Inga fakturor annu"
+              : `Inga fakturor med status "${statusLabels[statusFilter]}"`}
           </p>
           {statusFilter === "all" && (
             <Button
@@ -315,7 +331,7 @@ export function InvoicesPageClient() {
               className="mt-4"
               onClick={() => setCreateOpen(true)}
             >
-              Skapa din första faktura
+              Skapa din forsta faktura
             </Button>
           )}
         </div>
@@ -347,6 +363,12 @@ export function InvoicesPageClient() {
               customerEmail: invoice.customer.email,
               total: invoice.total,
               dueDate: invoice.dueDate,
+            })
+          }
+          onDuplicate={(invoiceId) =>
+            duplicateInvoice.mutate({
+              workspaceId: workspace.id,
+              sourceInvoiceId: invoiceId,
             })
           }
           page={page}

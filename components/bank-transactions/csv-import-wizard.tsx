@@ -11,6 +11,8 @@ import {
   ChevronRight,
   ChevronLeft,
   Loader2,
+  Save,
+  FolderOpen,
 } from "lucide-react";
 import {
   Dialog,
@@ -21,6 +23,20 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { trpc } from "@/lib/trpc/client";
 import { CsvFieldMapper } from "./csv-field-mapper";
 import { CsvPreviewTable } from "./csv-preview-table";
@@ -101,6 +117,33 @@ export function CsvImportWizard({
 
   // Result
   const [importedCount, setImportedCount] = useState(0);
+
+  // Profile state
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [showSaveProfile, setShowSaveProfile] = useState(false);
+  const [newProfileName, setNewProfileName] = useState("");
+
+  // Fetch saved profiles
+  const { data: profiles } = trpc.bankTransactions.profiles.list.useQuery(
+    { workspaceId, bankAccountId },
+    { enabled: open }
+  );
+
+  // Create profile mutation
+  const createProfileMutation = trpc.bankTransactions.profiles.create.useMutation({
+    onSuccess: () => {
+      toast.success("Profil sparad");
+      setShowSaveProfile(false);
+      setNewProfileName("");
+      utils.bankTransactions.profiles.list.invalidate({ workspaceId });
+    },
+    onError: (error) => {
+      toast.error("Kunde inte spara profil", { description: error.message });
+    },
+  });
+
+  // Record profile usage mutation
+  const recordProfileUsage = trpc.bankTransactions.profiles.recordUsage.useMutation();
 
   // AI field detection
   const detectMutation = trpc.bankTransactions.detectCsvMapping.useMutation({
@@ -209,6 +252,40 @@ export function CsvImportWizard({
     maxFiles: 1,
     maxSize: 10 * 1024 * 1024,
   });
+
+  // Apply a saved profile
+  const handleApplyProfile = (profileId: string) => {
+    const profile = profiles?.find((p) => p.id === profileId);
+    if (!profile) return;
+
+    setSelectedProfileId(profileId);
+    setMapping(profile.mapping);
+    setCsvConfig(profile.csvConfig);
+    setAiMapping(null); // Clear AI suggestions when using a profile
+
+    // Record profile usage
+    recordProfileUsage.mutate({ workspaceId, id: profileId });
+
+    toast.success("Profil tillämpad", {
+      description: `Mappningen "${profile.name}" har laddats.`,
+    });
+  };
+
+  // Save current mapping as profile
+  const handleSaveProfile = () => {
+    if (!newProfileName.trim()) {
+      toast.error("Ange ett namn för profilen");
+      return;
+    }
+
+    createProfileMutation.mutate({
+      workspaceId,
+      bankAccountId,
+      name: newProfileName.trim(),
+      mapping,
+      csvConfig,
+    });
+  };
 
   // Process and go to preview
   const handleContinueToPreview = () => {
@@ -414,13 +491,109 @@ export function CsvImportWizard({
                 </div>
               </div>
 
+              {/* Profile selector */}
+              {profiles && profiles.length > 0 && (
+                <div className="flex items-center gap-3 p-3 border rounded-lg bg-background">
+                  <FolderOpen className="size-5 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <Label htmlFor="profile-select" className="text-sm font-medium">
+                      Använd sparad profil
+                    </Label>
+                    <Select
+                      value={selectedProfileId ?? ""}
+                      onValueChange={(value) => value && handleApplyProfile(value)}
+                    >
+                      <SelectTrigger id="profile-select" className="mt-1">
+                        <SelectValue placeholder="Välj en sparad profil..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {profiles.map((profile) => (
+                          <SelectItem key={profile.id} value={profile.id}>
+                            <div className="flex items-center gap-2">
+                              <span>{profile.name}</span>
+                              {profile.usageCount > 0 && (
+                                <span className="text-xs text-muted-foreground">
+                                  ({profile.usageCount}x)
+                                </span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
               <CsvFieldMapper
                 headers={headers}
                 sampleValues={sampleValues}
                 mapping={mapping}
                 aiMapping={aiMapping}
-                onChange={setMapping}
+                onChange={(newMapping) => {
+                  setMapping(newMapping);
+                  // Clear selected profile when mapping changes manually
+                  if (selectedProfileId) {
+                    setSelectedProfileId(null);
+                  }
+                }}
               />
+
+              {/* Save profile button */}
+              <div className="flex justify-end">
+                <Popover open={showSaveProfile} onOpenChange={setShowSaveProfile}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={mapping.accountingDate === null || mapping.amount === null}
+                    >
+                      <Save className="size-4 mr-2" />
+                      Spara profil
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-80">
+                    <div className="space-y-3">
+                      <div>
+                        <h4 className="font-medium mb-1">Spara importprofil</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Spara denna mappning för snabbare import nästa gång.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="profile-name">Profilnamn</Label>
+                        <Input
+                          id="profile-name"
+                          value={newProfileName}
+                          onChange={(e) => setNewProfileName(e.target.value)}
+                          placeholder="T.ex. SEB Företagskonto"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowSaveProfile(false)}
+                        >
+                          Avbryt
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleSaveProfile}
+                          disabled={!newProfileName.trim() || createProfileMutation.isPending}
+                        >
+                          {createProfileMutation.isPending ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            "Spara"
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
           )}
 

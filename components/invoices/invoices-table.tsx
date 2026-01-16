@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FilePdf, PaperPlaneTilt, Check, DotsThree, Trash, Eye, BookOpen, CheckCircle, Bell } from "@phosphor-icons/react";
+import { FilePdf, PaperPlaneTilt, Check, DotsThree, Trash, Eye, BookOpen, CheckCircle, Bell, CopySimple } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -53,6 +53,7 @@ interface InvoicesTableProps {
   onCreateSentVerification?: (invoiceId: string) => void;
   onCreatePaidVerification?: (invoiceId: string) => void;
   onSendReminder?: (invoice: Invoice) => void;
+  onDuplicate?: (invoiceId: string) => void;
   page: number;
   totalPages: number;
   total: number;
@@ -107,6 +108,59 @@ function getDisplayStatus(invoice: Invoice): DisplayStatus {
   return "sent";
 }
 
+// Get verification status for display in Bokford column
+function getVerificationStatus(invoice: Invoice): {
+  isComplete: boolean;
+  tooltip: string;
+} {
+  if (invoice.status === "draft") {
+    return { isComplete: false, tooltip: "" };
+  }
+
+  if (invoice.status === "paid") {
+    const hasSent = !!invoice.sentJournalEntryId;
+    const hasPaid = !!invoice.journalEntryId;
+
+    if (hasSent && hasPaid) {
+      return { isComplete: true, tooltip: "Intakt och betalning bokford" };
+    }
+    if (!hasSent && !hasPaid) {
+      return { isComplete: false, tooltip: "Varken intakt eller betalning bokford" };
+    }
+    if (!hasSent) {
+      return { isComplete: false, tooltip: "Intakt ej bokford" };
+    }
+    return { isComplete: false, tooltip: "Betalning ej bokford" };
+  }
+
+  // Status is "sent"
+  if (invoice.sentJournalEntryId) {
+    return { isComplete: true, tooltip: "Intakt bokford" };
+  }
+  return { isComplete: false, tooltip: "Intakt ej bokford" };
+}
+
+function VerificationStatusCell({ invoice }: { invoice: Invoice }) {
+  if (invoice.status === "draft") {
+    return <span className="text-muted-foreground">-</span>;
+  }
+
+  const { isComplete, tooltip } = getVerificationStatus(invoice);
+
+  return (
+    <Tooltip>
+      <TooltipTrigger>
+        {isComplete ? (
+          <CheckCircle className="size-4 text-green-600" />
+        ) : (
+          <span className="text-amber-600 text-xs font-medium">Ej bokford</span>
+        )}
+      </TooltipTrigger>
+      <TooltipContent>{tooltip}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 export function InvoicesTable({
   invoices,
   workspaceSlug,
@@ -117,6 +171,7 @@ export function InvoicesTable({
   onCreateSentVerification,
   onCreatePaidVerification,
   onSendReminder,
+  onDuplicate,
   page,
   totalPages,
   total,
@@ -188,49 +243,7 @@ export function InvoicesTable({
                 </Badge>
               </TableCell>
               <TableCell className="px-4">
-                {invoice.status === "draft" ? (
-                  <span className="text-muted-foreground">-</span>
-                ) : invoice.status === "paid" ? (
-                  // For paid invoices, check both verifications
-                  invoice.sentJournalEntryId && invoice.journalEntryId ? (
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <CheckCircle className="size-4 text-green-600" />
-                      </TooltipTrigger>
-                      <TooltipContent>Intäkt och betalning bokförd</TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <span className="text-amber-600 text-xs font-medium">Ej bokförd</span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {!invoice.sentJournalEntryId && !invoice.journalEntryId
-                          ? "Varken intäkt eller betalning bokförd"
-                          : !invoice.sentJournalEntryId
-                          ? "Intäkt ej bokförd"
-                          : "Betalning ej bokförd"}
-                      </TooltipContent>
-                    </Tooltip>
-                  )
-                ) : (
-                  // For sent invoices, check sent verification
-                  invoice.sentJournalEntryId ? (
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <CheckCircle className="size-4 text-green-600" />
-                      </TooltipTrigger>
-                      <TooltipContent>Intäkt bokförd</TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <span className="text-amber-600 text-xs font-medium">Ej bokförd</span>
-                      </TooltipTrigger>
-                      <TooltipContent>Intäkt ej bokförd</TooltipContent>
-                    </Tooltip>
-                  )
-                )}
+                <VerificationStatusCell invoice={invoice} />
               </TableCell>
               <TableCell className="px-4">{formatDate(invoice.invoiceDate)}</TableCell>
               <TableCell className="px-4">{formatDate(invoice.dueDate)}</TableCell>
@@ -252,6 +265,12 @@ export function InvoicesTable({
                       <FilePdf className="size-4 mr-2" />
                       Ladda ner PDF
                     </DropdownMenuItem>
+                    {onDuplicate && (
+                      <DropdownMenuItem onClick={() => onDuplicate(invoice.id)} className="whitespace-nowrap">
+                        <CopySimple className="size-4 mr-2" />
+                        Duplicera faktura
+                      </DropdownMenuItem>
+                    )}
                     {invoice.status === "draft" && (
                       <DropdownMenuItem onClick={() => onMarkAsSent(invoice.id)} className="whitespace-nowrap">
                         <PaperPlaneTilt className="size-4 mr-2" />

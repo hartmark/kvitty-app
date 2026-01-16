@@ -2,8 +2,8 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { generateObject } from "ai";
 import { router, workspaceProcedure } from "../init";
-import { bankTransactions, auditLogs, bankAccounts, journalEntries, bankImportBatches } from "@/lib/db/schema";
-import { eq, and, isNull, inArray, or, count, desc, gte, lte, ilike } from "drizzle-orm";
+import { bankTransactions, auditLogs, bankAccounts, journalEntries, bankImportBatches, csvImportProfiles, attachments } from "@/lib/db/schema";
+import { eq, and, isNull, inArray, or, count, desc, gte, lte, ilike, exists, notExists, sql } from "drizzle-orm";
 import {
   createBankTransactionsSchema,
   updateBankTransactionSchema,
@@ -11,6 +11,8 @@ import {
 import {
   csvFieldMappingSchema,
   csvConfigSchema,
+  createCsvImportProfileSchema,
+  updateCsvImportProfileSchema,
 } from "@/lib/validations/csv-import";
 import { bankTransactionModel } from "@/lib/ai";
 import { parseCSV, parseOFX, detectFileFormat } from "@/lib/utils/bank-import";
@@ -30,6 +32,7 @@ export const bankTransactionsRouter = router({
         workspaceId: z.string(),
         bankAccountId: z.string().optional(),
         unmappedOnly: z.boolean().optional(),
+        hasAttachments: z.enum(["all", "with", "without"]).optional(),
         dateFrom: z.string().optional(),
         dateTo: z.string().optional(),
         search: z.string().optional(),
@@ -46,6 +49,25 @@ export const bankTransactionsRouter = router({
 
       if (input.unmappedOnly) {
         conditions.push(isNull(bankTransactions.mappedToJournalEntryId));
+      }
+
+      // Filter by attachments
+      if (input.hasAttachments === "with") {
+        conditions.push(
+          exists(
+            ctx.db.select({ id: attachments.id })
+              .from(attachments)
+              .where(eq(attachments.bankTransactionId, bankTransactions.id))
+          )
+        );
+      } else if (input.hasAttachments === "without") {
+        conditions.push(
+          notExists(
+            ctx.db.select({ id: attachments.id })
+              .from(attachments)
+              .where(eq(attachments.bankTransactionId, bankTransactions.id))
+          )
+        );
       }
 
       if (input.dateFrom) {
@@ -1460,5 +1482,191 @@ ${input.content}`,
         batchId: importBatch.id,
       };
     }),
+
+  // CSV Import Profiles procedures
+  profiles: router({
+    list: workspaceProcedure
+      .input(
+        z.object({
+          bankAccountId: z.string().optional(),
+        })
+      )
+      .query(async ({ ctx, input }) => {
+        const conditions = [eq(csvImportProfiles.workspaceId, ctx.workspaceId)];
+
+        if (input.bankAccountId) {
+          conditions.push(
+            or(
+              eq(csvImportProfiles.bankAccountId, input.bankAccountId),
+              isNull(csvImportProfiles.bankAccountId)
+            )!
+          );
+        }
+
+        const profiles = await ctx.db.query.csvImportProfiles.findMany({
+          where: and(...conditions),
+          orderBy: [desc(csvImportProfiles.usageCount), desc(csvImportProfiles.lastUsedAt)],
+          with: {
+            bankAccount: {
+              columns: { id: true, name: true, accountNumber: true },
+            },
+          },
+        });
+
+        return profiles;
+      }),
+
+    get: workspaceProcedure
+      .input(z.object({ id: z.string() }))
+      .query(async ({ ctx, input }) => {
+        const profile = await ctx.db.query.csvImportProfiles.findFirst({
+          where: and(
+            eq(csvImportProfiles.id, input.id),
+            eq(csvImportProfiles.workspaceId, ctx.workspaceId)
+          ),
+          with: {
+            bankAccount: true,
+          },
+        });
+
+        if (!profile) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+
+        return profile;
+      }),
+
+    create: workspaceProcedure
+      .input(createCsvImportProfileSchema)
+      .mutation(async ({ ctx, input }) => {
+        // Verify bank account if provided
+        if (input.bankAccountId) {
+          const bankAccount = await ctx.db.query.bankAccounts.findFirst({
+            where: and(
+              eq(bankAccounts.id, input.bankAccountId),
+              eq(bankAccounts.workspaceId, ctx.workspaceId)
+            ),
+          });
+
+          if (!bankAccount) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Ogiltigt bankkonto",
+            });
+          }
+        }
+
+        const [profile] = await ctx.db
+          .insert(csvImportProfiles)
+          .values({
+            workspaceId: ctx.workspaceId,
+            bankAccountId: input.bankAccountId ?? null,
+            name: input.name,
+            mapping: input.mapping,
+            csvConfig: input.csvConfig,
+            createdBy: ctx.session.user.id,
+          })
+          .returning();
+
+        return profile;
+      }),
+
+    update: workspaceProcedure
+      .input(updateCsvImportProfileSchema.extend({ workspaceId: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const existing = await ctx.db.query.csvImportProfiles.findFirst({
+          where: and(
+            eq(csvImportProfiles.id, input.id),
+            eq(csvImportProfiles.workspaceId, ctx.workspaceId)
+          ),
+        });
+
+        if (!existing) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+
+        // Verify bank account if changing
+        if (input.bankAccountId !== undefined && input.bankAccountId !== null) {
+          const bankAccount = await ctx.db.query.bankAccounts.findFirst({
+            where: and(
+              eq(bankAccounts.id, input.bankAccountId),
+              eq(bankAccounts.workspaceId, ctx.workspaceId)
+            ),
+          });
+
+          if (!bankAccount) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Ogiltigt bankkonto",
+            });
+          }
+        }
+
+        const updateData: Record<string, unknown> = {
+          updatedAt: new Date(),
+        };
+
+        if (input.name !== undefined) updateData.name = input.name;
+        if (input.bankAccountId !== undefined) updateData.bankAccountId = input.bankAccountId;
+        if (input.mapping !== undefined) updateData.mapping = input.mapping;
+        if (input.csvConfig !== undefined) updateData.csvConfig = input.csvConfig;
+
+        const [updated] = await ctx.db
+          .update(csvImportProfiles)
+          .set(updateData)
+          .where(eq(csvImportProfiles.id, input.id))
+          .returning();
+
+        return updated;
+      }),
+
+    delete: workspaceProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const existing = await ctx.db.query.csvImportProfiles.findFirst({
+          where: and(
+            eq(csvImportProfiles.id, input.id),
+            eq(csvImportProfiles.workspaceId, ctx.workspaceId)
+          ),
+        });
+
+        if (!existing) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+
+        await ctx.db
+          .delete(csvImportProfiles)
+          .where(eq(csvImportProfiles.id, input.id));
+
+        return { success: true };
+      }),
+
+    recordUsage: workspaceProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const existing = await ctx.db.query.csvImportProfiles.findFirst({
+          where: and(
+            eq(csvImportProfiles.id, input.id),
+            eq(csvImportProfiles.workspaceId, ctx.workspaceId)
+          ),
+        });
+
+        if (!existing) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+
+        const [updated] = await ctx.db
+          .update(csvImportProfiles)
+          .set({
+            usageCount: existing.usageCount + 1,
+            lastUsedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(csvImportProfiles.id, input.id))
+          .returning();
+
+        return updated;
+      }),
+  }),
 });
 

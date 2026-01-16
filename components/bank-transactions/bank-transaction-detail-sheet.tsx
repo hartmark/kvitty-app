@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useFileUpload } from "@/lib/hooks/use-file-upload";
-import { Paperclip, ChatCircle, Trash, FilePdf, Image as ImageIcon, File, FileXls, FileCsv, Pencil } from "@phosphor-icons/react";
+import { Paperclip, ChatCircle, Trash, FilePdf, Image as ImageIcon, File, FileXls, FileCsv, Pencil, Download } from "@phosphor-icons/react";
 import {
   Sheet,
   SheetContent,
@@ -70,6 +70,7 @@ export function BankTransactionDetailSheet({
         workspaceId,
         bankTransactionId: transaction?.id,
       });
+      utils.bankTransactions.list.invalidate({ workspaceId });
     },
   });
 
@@ -79,6 +80,7 @@ export function BankTransactionDetailSheet({
         workspaceId,
         bankTransactionId: transaction?.id,
       });
+      utils.bankTransactions.list.invalidate({ workspaceId });
     },
   });
 
@@ -88,6 +90,7 @@ export function BankTransactionDetailSheet({
         workspaceId,
         bankTransactionId: transaction?.id,
       });
+      utils.bankTransactions.list.invalidate({ workspaceId });
     },
   });
 
@@ -155,6 +158,7 @@ export function BankTransactionDetailSheet({
         workspaceId,
         bankTransactionId: transaction.id,
       });
+      utils.bankTransactions.list.invalidate({ workspaceId });
 
       toast.success(validFiles.length === 1 ? "Fil uppladdad" : `${validFiles.length} filer uppladdade`);
     } catch (error) {
@@ -212,6 +216,24 @@ export function BankTransactionDetailSheet({
 
   function isImageFile(mimeType: string | null) {
     return mimeType?.startsWith("image/") ?? false;
+  }
+
+  async function handleDownloadFile(fileUrl: string, fileName: string) {
+    try {
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Download failed:", error);
+      toast.error("Nedladdning misslyckades");
+    }
   }
 
   return (
@@ -382,21 +404,43 @@ export function BankTransactionDetailSheet({
                         <p className="text-xs text-muted-foreground">
                           {formatFileSize(attachment.fileSize)}
                         </p>
+                        {attachment.createdAt && (
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(attachment.createdAt).toLocaleDateString("sv-SE", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        )}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() =>
-                          deleteAttachment.mutate({
-                            workspaceId,
-                            bankTransactionId: transaction.id,
-                            attachmentId: attachment.id,
-                          })
-                        }
-                      >
-                        <Trash className="size-4" />
-                      </Button>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          onClick={() => handleDownloadFile(attachment.fileUrl, attachment.fileName)}
+                          title="Ladda ner fil"
+                        >
+                          <Download className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          onClick={() =>
+                            deleteAttachment.mutate({
+                              workspaceId,
+                              bankTransactionId: transaction.id,
+                              attachmentId: attachment.id,
+                            })
+                          }
+                        >
+                          <Trash className="size-4" />
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}

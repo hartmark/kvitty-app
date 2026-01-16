@@ -7,8 +7,10 @@ import {
   journalEntryAttachments,
   fiscalPeriods,
   auditLogs,
+  templateUsage,
 } from "@/lib/db/schema";
 import { eq, and, desc, sql, count, ilike, gte, lte, or } from "drizzle-orm";
+import { VERIFICATION_TEMPLATES } from "@/lib/consts/verification-templates";
 import {
   createJournalEntrySchema,
   updateJournalEntrySchema,
@@ -221,6 +223,36 @@ export const journalEntriesRouter = router({
         entityId: entry.id,
         changes: { entry, lines },
       });
+
+      // Track template usage for smart suggestions
+      if (input.templateId) {
+        const existing = await ctx.db.query.templateUsage.findFirst({
+          where: and(
+            eq(templateUsage.workspaceId, ctx.workspaceId),
+            eq(templateUsage.userId, ctx.session.user.id),
+            eq(templateUsage.templateId, input.templateId)
+          ),
+        });
+
+        if (existing) {
+          await ctx.db
+            .update(templateUsage)
+            .set({
+              usageCount: existing.usageCount + 1,
+              lastUsedAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .where(eq(templateUsage.id, existing.id));
+        } else {
+          await ctx.db.insert(templateUsage).values({
+            workspaceId: ctx.workspaceId,
+            userId: ctx.session.user.id,
+            templateId: input.templateId,
+            usageCount: 1,
+            lastUsedAt: new Date(),
+          });
+        }
+      }
 
       return { ...entry, lines };
     }),
@@ -731,5 +763,81 @@ export const journalEntriesRouter = router({
         skipped: duplicateCount,
         message: `${importedIds.length} verifikationer importerade${duplicateCount > 0 ? `, ${duplicateCount} dubbletter hoppades över` : ""}`,
       };
+    }),
+
+  // Get smart template suggestions based on user's usage patterns
+  getSmartSuggestions: workspaceProcedure
+    .input(
+      z.object({
+        direction: z.enum(["In", "Out", "InShowAll"]).optional(),
+        limit: z.number().min(1).max(10).default(3),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      // Get user's template usage stats (top 10 by usage count)
+      const usage = await ctx.db.query.templateUsage.findMany({
+        where: and(
+          eq(templateUsage.workspaceId, ctx.workspaceId),
+          eq(templateUsage.userId, ctx.session.user.id)
+        ),
+        orderBy: [desc(templateUsage.usageCount), desc(templateUsage.lastUsedAt)],
+        limit: 10,
+      });
+
+      if (usage.length === 0) {
+        return [];
+      }
+
+      // Get the max usage count for normalization
+      const maxUsageCount = Math.max(...usage.map((u) => u.usageCount));
+      const now = Date.now();
+
+      // Score and filter templates
+      const scoredTemplates = usage
+        .map((u) => {
+          const template = VERIFICATION_TEMPLATES.find((t) => t.id === u.templateId);
+          if (!template) return null;
+
+          // Filter by direction if specified
+          if (input.direction) {
+            const templateDirection = template.direction;
+            if (input.direction === "In" && !["In", "InShowAll"].includes(templateDirection)) {
+              return null;
+            }
+            if (input.direction === "Out" && !["Out", "InShowAll"].includes(templateDirection)) {
+              return null;
+            }
+          }
+
+          // Calculate score (0-100):
+          // - Usage frequency: 0-50 points (normalized against max)
+          const frequencyScore = (u.usageCount / maxUsageCount) * 50;
+
+          // - Recency: 0-30 points (decays over 30 days)
+          const daysSinceLastUse = (now - new Date(u.lastUsedAt).getTime()) / (1000 * 60 * 60 * 24);
+          const recencyScore = Math.max(0, 30 - daysSinceLastUse);
+
+          // - Consistency bonus: 0-20 points (frequent recent usage)
+          const consistencyScore = u.usageCount >= 5 ? 20 : (u.usageCount / 5) * 20;
+
+          const totalScore = frequencyScore + recencyScore + consistencyScore;
+
+          return {
+            template,
+            usageCount: u.usageCount,
+            lastUsedAt: u.lastUsedAt,
+            score: totalScore,
+          };
+        })
+        .filter((t): t is NonNullable<typeof t> => t !== null)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, input.limit);
+
+      return scoredTemplates.map((s) => ({
+        ...s.template,
+        usageCount: s.usageCount,
+        lastUsedAt: s.lastUsedAt,
+        score: Math.round(s.score),
+      }));
     }),
 });

@@ -88,3 +88,24 @@ export const csvImportResultSchema = z.object({
 });
 
 export type CsvImportResult = z.infer<typeof csvImportResultSchema>;
+
+// CSV Import Profile schemas
+export const createCsvImportProfileSchema = z.object({
+  workspaceId: z.string(),
+  bankAccountId: z.string().optional().nullable(),
+  name: z.string().min(1, "Namn krävs").max(100),
+  mapping: csvFieldMappingSchema,
+  csvConfig: csvConfigSchema,
+});
+
+export type CreateCsvImportProfileInput = z.infer<typeof createCsvImportProfileSchema>;
+
+export const updateCsvImportProfileSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, "Namn krävs").max(100).optional(),
+  bankAccountId: z.string().optional().nullable(),
+  mapping: csvFieldMappingSchema.optional(),
+  csvConfig: csvConfigSchema.optional(),
+});
+
+export type UpdateCsvImportProfileInput = z.infer<typeof updateCsvImportProfileSchema>;

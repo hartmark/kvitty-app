@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { MagnifyingGlass, CaretRight, PencilSimple, ArrowLeft } from "@phosphor-icons/react";
+import { MagnifyingGlass, CaretRight, PencilSimple, ArrowLeft, Sparkle } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +23,12 @@ import {
   getTemplatesByDirection,
 } from "@/lib/utils/template-utils";
 
+export interface SuggestedTemplate extends VerificationTemplate {
+  usageCount: number;
+  lastUsedAt: Date;
+  score: number;
+}
+
 interface TemplateSelectorProps {
   templates: VerificationTemplate[];
   categories: string[];
@@ -30,6 +36,7 @@ interface TemplateSelectorProps {
   onSelectTemplate: (template: VerificationTemplate) => void;
   onSelectManual: () => void;
   onBack: () => void;
+  suggestions?: SuggestedTemplate[];
 }
 
 export function TemplateSelector({
@@ -39,6 +46,7 @@ export function TemplateSelector({
   onSelectTemplate,
   onSelectManual,
   onBack,
+  suggestions,
 }: TemplateSelectorProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
@@ -153,6 +161,45 @@ export function TemplateSelector({
         ) : (
           // Category Browser
           <div className="space-y-1">
+            {/* Smart Suggestions Section */}
+            {suggestions && suggestions.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Sparkle className="size-3.5 text-amber-500" weight="fill" />
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                    Föreslagna mallar
+                  </p>
+                </div>
+                <div className="space-y-1 pl-0.5">
+                  {suggestions.map((template) => (
+                    <button
+                      key={template.id}
+                      type="button"
+                      onClick={() => onSelectTemplate(template)}
+                      className={cn(
+                        "w-full text-left rounded-lg px-3 py-2 transition-colors",
+                        "bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/40",
+                        "hover:bg-amber-100 dark:hover:bg-amber-950/40 hover:border-amber-300 dark:hover:border-amber-700/60",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-sm">{template.name}</p>
+                        <span className="text-xs text-amber-600 dark:text-amber-400 tabular-nums">
+                          {template.usageCount}x
+                        </span>
+                      </div>
+                      {template.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                          {template.description}
+                        </p>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <p className="text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
               Alla mallar
             </p>

@@ -24,6 +24,8 @@ import { inboxRouter } from "./routers/inbox";
 import { allowedEmailsRouter } from "./routers/allowed-emails";
 // API key management
 import { apiKeysRouter } from "./routers/api-keys";
+// Smart features
+import { categorizationRulesRouter } from "./routers/categorization-rules";
 
 export const appRouter = router({
   workspaces: workspacesRouter,
@@ -51,6 +53,8 @@ export const appRouter = router({
   allowedEmails: allowedEmailsRouter,
   // API key management
   apiKeys: apiKeysRouter,
+  // Smart features
+  categorizationRules: categorizationRulesRouter,
 });
 
 export type AppRouter = typeof appRouter;

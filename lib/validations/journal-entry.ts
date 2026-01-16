@@ -34,6 +34,7 @@ export const createJournalEntrySchema = z
     description: z.string().min(1, "Beskrivning krävs").max(500),
     entryType: z.enum(journalEntryTypes),
     sourceType: z.enum(["manual", "ai_assisted", "payroll", "bank_import"]).optional(),
+    templateId: z.string().optional(), // For tracking template usage
     lines: z
       .array(journalEntryLineSchema)
       .min(2, "Minst två rader krävs för en verifikation"),
