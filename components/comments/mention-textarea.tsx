@@ -11,6 +11,7 @@ interface MentionTextareaProps {
   value: string;
   onChange: (value: string) => void;
   onMentionsChange?: (mentions: string[]) => void;
+  onSubmit?: () => void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
@@ -28,6 +29,7 @@ export function MentionTextarea({
   value,
   onChange,
   onMentionsChange,
+  onSubmit,
   placeholder = "Skriv en kommentar...",
   className,
   disabled = false,
@@ -156,6 +158,13 @@ export function MentionTextarea({
 
   // Keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Handle Cmd+Enter or Ctrl+Enter for submit
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      onSubmit?.();
+      return;
+    }
+
     if (!showDropdown || filteredMembers.length === 0) return;
 
     switch (e.key) {

@@ -419,9 +419,11 @@ export function VerificationDetailSheet({
                   value={comment}
                   onChange={setComment}
                   onMentionsChange={setMentions}
+                  onSubmit={handleAddComment}
                   className="min-h-[80px]"
                 />
-                <div className="flex justify-end">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">⌘+Enter för att skicka</span>
                   <Button
                     size="sm"
                     onClick={handleAddComment}

@@ -98,6 +98,16 @@ export function BankTransactionDetailSheet({
     },
   });
 
+  const handleAddComment = () => {
+    if (!comment.trim() || addComment.isPending || !transaction) return;
+    addComment.mutate({
+      workspaceId,
+      bankTransactionId: transaction.id,
+      content: comment,
+      mentions,
+    });
+  };
+
   if (!transaction) return null;
 
   const formatCurrency = (value: string | null) => {
@@ -449,19 +459,14 @@ export function BankTransactionDetailSheet({
                   value={comment}
                   onChange={setComment}
                   onMentionsChange={setMentions}
+                  onSubmit={handleAddComment}
                   className="min-h-[80px]"
                 />
-                <div className="flex justify-end">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">⌘+Enter för att skicka</span>
                   <Button
                     size="sm"
-                    onClick={() =>
-                      addComment.mutate({
-                        workspaceId,
-                        bankTransactionId: transaction.id,
-                        content: comment,
-                        mentions,
-                      })
-                    }
+                    onClick={handleAddComment}
                     disabled={!comment.trim() || addComment.isPending}
                   >
                     {addComment.isPending ? <Spinner /> : "Lägg till kommentar"}
