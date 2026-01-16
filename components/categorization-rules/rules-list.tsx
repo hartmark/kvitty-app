@@ -203,11 +203,31 @@ export function RulesList({ workspaceId }: RulesListProps) {
   });
 
   const updateMutation = trpc.categorizationRules.update.useMutation({
-    onSuccess: () => {
-      utils.categorizationRules.list.invalidate({ workspaceId });
+    onMutate: async (newData) => {
+      // Cancel outgoing refetches
+      await utils.categorizationRules.list.cancel({ workspaceId });
+
+      // Snapshot previous value
+      const previousRules = utils.categorizationRules.list.getData({ workspaceId, activeOnly: false });
+
+      // Optimistically update
+      if (previousRules) {
+        utils.categorizationRules.list.setData({ workspaceId, activeOnly: false }, (old) =>
+          old?.map((r) => r.id === newData.id ? { ...r, ...newData } : r)
+        );
+      }
+
+      return { previousRules };
     },
-    onError: (error) => {
+    onError: (error, _newData, context) => {
+      // Rollback on error
+      if (context?.previousRules) {
+        utils.categorizationRules.list.setData({ workspaceId, activeOnly: false }, context.previousRules);
+      }
       toast.error("Kunde inte uppdatera regel", { description: error.message });
+    },
+    onSettled: () => {
+      utils.categorizationRules.list.invalidate({ workspaceId });
     },
   });
 
@@ -224,6 +244,7 @@ export function RulesList({ workspaceId }: RulesListProps) {
 
   const updatePrioritiesMutation = trpc.categorizationRules.updatePriorities.useMutation({
     onSuccess: () => {
+      toast.success("Ordning uppdaterad");
       utils.categorizationRules.list.invalidate({ workspaceId });
     },
     onError: (error) => {
@@ -280,8 +301,8 @@ export function RulesList({ workspaceId }: RulesListProps) {
           <div>
             <CardTitle>Kategoriseringsregler</CardTitle>
             <CardDescription>
-              Definiera regler for automatisk kategorisering av banktransaktioner.
-              Dra for att andra prioritet.
+              Definiera regler för automatisk kategorisering av banktransaktioner.
+              Dra för att ändra prioritet.
             </CardDescription>
           </div>
           <Button onClick={() => setCreateDialogOpen(true)}>
@@ -293,9 +314,9 @@ export function RulesList({ workspaceId }: RulesListProps) {
           {!rules || rules.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Sparkle className="size-12 mx-auto mb-4 opacity-50" />
-              <p className="mb-2">Inga regler skapade annu</p>
+              <p className="mb-2">Inga regler skapade ännu</p>
               <p className="text-sm mb-4">
-                Skapa en regel for att automatiskt kategorisera transaktioner
+                Skapa en regel för att automatiskt kategorisera transaktioner
               </p>
               <Button variant="outline" onClick={() => setCreateDialogOpen(true)}>
                 Skapa en regel
@@ -350,7 +371,9 @@ export function RulesList({ workspaceId }: RulesListProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Ta bort regel</AlertDialogTitle>
             <AlertDialogDescription>
-              Ar du saker pa att du vill ta bort denna regel? Detta kan inte angras.
+              Är du säker på att du vill ta bort regeln{" "}
+              <strong>{rules?.find((r) => r.id === deleteRuleId)?.name}</strong>?
+              Detta kan inte ångras.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

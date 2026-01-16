@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useFileUpload } from "@/lib/hooks/use-file-upload";
-import { Paperclip, ChatCircle, Trash, FilePdf, Image as ImageIcon, File, FileXls, FileCsv, Pencil, Download } from "@phosphor-icons/react";
+import { Paperclip, ChatCircle, Trash, FilePdf, Image as ImageIcon, File, FileXls, FileCsv, Pencil, Download, Sparkle, Lightning } from "@phosphor-icons/react";
 import {
   Sheet,
   SheetContent,
@@ -26,7 +26,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
+import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc/client";
+import { VERIFICATION_TEMPLATES } from "@/lib/consts/verification-templates";
 import type { bankTransactions } from "@/lib/db/schema";
 import { EditBankTransactionDialog } from "./edit-bank-transaction-dialog";
 import { MentionTextarea } from "@/components/comments/mention-textarea";
@@ -62,6 +64,18 @@ export function BankTransactionDetailSheet({
     { workspaceId, bankTransactionId: transaction?.id ?? "" },
     { enabled: !!transaction }
   );
+
+  // Evaluate categorization rules for this transaction
+  const { data: ruleMatches } = trpc.categorizationRules.evaluate.useQuery(
+    {
+      workspaceId,
+      description: transaction?.reference || "",
+      amount: parseFloat(transaction?.amount || "0"),
+    },
+    { enabled: !!transaction && open }
+  );
+
+  const recordMatchMutation = trpc.categorizationRules.recordMatch.useMutation();
 
   const addComment = trpc.comments.create.useMutation({
     onSuccess: () => {
@@ -318,6 +332,60 @@ export function BankTransactionDetailSheet({
               </div>
             )}
           </div>
+
+          {/* Rule Suggestions */}
+          {ruleMatches && ruleMatches.length > 0 && (
+            <div className="mb-6 p-4 bg-muted/50 border rounded-lg">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkle className="size-4 text-primary" />
+                <h4 className="text-sm font-medium">Förslag baserat på regler</h4>
+              </div>
+              <div className="space-y-2">
+                {ruleMatches.slice(0, 3).map((match) => {
+                  const template = match.actionType === "suggest_template" || match.actionType === "auto_book"
+                    ? VERIFICATION_TEMPLATES.find((t) => t.id === match.actionValue)
+                    : null;
+
+                  return (
+                    <div
+                      key={match.ruleId}
+                      className="flex items-center justify-between gap-3 p-3 bg-background border rounded-md"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium truncate">
+                            {template?.name || match.actionValue}
+                          </span>
+                          {match.actionType === "auto_book" && (
+                            <Badge variant="secondary" className="shrink-0">
+                              <Lightning className="size-3 mr-1" />
+                              Auto
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">
+                          Regel: {match.ruleName}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          recordMatchMutation.mutate({ workspaceId, id: match.ruleId });
+                          toast.success("Mall vald", {
+                            description: `Använder mall: ${template?.name || match.actionValue}`,
+                          });
+                          // TODO: Navigate to booking with pre-selected template
+                        }}
+                      >
+                        Använd
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <Tabs defaultValue="attachments" className="flex flex-col flex-1 min-h-0">
             <TabsList className="grid w-full grid-cols-2">

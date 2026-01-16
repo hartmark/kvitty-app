@@ -1,5 +1,32 @@
 import type { ConditionType, ActionType } from "@/lib/validations/categorization-rules";
 
+/**
+ * Check if a regex pattern is potentially dangerous (ReDoS)
+ * Returns true if the pattern appears safe
+ */
+function isSafeRegex(pattern: string): boolean {
+  // Reject patterns that are too long
+  if (pattern.length > 200) return false;
+
+  // Check for common ReDoS patterns:
+  // - Nested quantifiers like (a+)+ or (a*)*
+  // - Overlapping alternations like (a|a)+
+  const dangerousPatterns = [
+    /\([^)]*[+*][^)]*\)[+*]/, // Nested quantifiers: (a+)+, (a*)*
+    /\([^)]*[+*][^)]*\)\{/, // Nested quantifiers with braces: (a+){2,}
+    /([+*?])\1/, // Repeated quantifiers: a++, a**
+    /\(\?[^)]+\)[+*]/, // Non-capturing group with quantifier
+  ];
+
+  for (const dangerous of dangerousPatterns) {
+    if (dangerous.test(pattern)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export interface CategorizationRule {
   id: string;
   name: string;
@@ -48,21 +75,33 @@ export function evaluateCondition(
 
     case "regex":
       try {
+        // Check for potentially dangerous regex patterns (ReDoS)
+        if (!isSafeRegex(conditionValue)) {
+          return false;
+        }
         const regex = new RegExp(conditionValue, "i");
         return regex.test(transaction.description);
       } catch {
         return false;
       }
 
-    case "amount_gt":
-      return transaction.amount > parseFloat(conditionValue);
+    case "amount_gt": {
+      const threshold = parseFloat(conditionValue);
+      if (isNaN(threshold)) return false;
+      return transaction.amount > threshold;
+    }
 
-    case "amount_lt":
-      return transaction.amount < parseFloat(conditionValue);
+    case "amount_lt": {
+      const threshold = parseFloat(conditionValue);
+      if (isNaN(threshold)) return false;
+      return transaction.amount < threshold;
+    }
 
     case "amount_range": {
       // Format: "min,max" e.g. "100,500"
-      const [min, max] = conditionValue.split(",").map((v) => parseFloat(v.trim()));
+      const parts = conditionValue.split(",").map((v) => parseFloat(v.trim()));
+      const [min, max] = parts;
+      if (isNaN(min) || isNaN(max)) return false;
       return transaction.amount >= min && transaction.amount <= max;
     }
 

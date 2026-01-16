@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Sparkle, ListBullets, Info } from "@phosphor-icons/react";
@@ -134,13 +134,13 @@ export function RuleBuilderDialog({
     { enabled: open && isEditing }
   );
 
-  const form = useForm<CreateCategorizationRuleInput>({
+  const form = useForm({
     resolver: zodResolver(createCategorizationRuleSchema),
     defaultValues: {
       workspaceId,
       name: "",
       description: "",
-      priority: 0,
+      // priority is omitted - auto-assigned by server
       isActive: true,
       conditionType: "contains",
       conditionValue: "",
@@ -173,7 +173,7 @@ export function RuleBuilderDialog({
         workspaceId,
         name: "",
         description: "",
-        priority: 0,
+        // priority is omitted - auto-assigned by server
         isActive: true,
         conditionType: "contains",
         conditionValue: "",
@@ -206,7 +206,7 @@ export function RuleBuilderDialog({
     },
   });
 
-  const onSubmit = (data: CreateCategorizationRuleInput) => {
+  const onSubmit: SubmitHandler<CreateCategorizationRuleInput> = (data) => {
     if (isEditing) {
       updateMutation.mutate({
         id: editRuleId!,
@@ -225,8 +225,12 @@ export function RuleBuilderDialog({
     }
   };
 
-  const actionType = form.watch("actionType");
-  const conditionType = form.watch("conditionType");
+  // Watch form values once at the top to avoid excessive re-renders
+  const watchedValues = form.watch();
+  const actionType = watchedValues.actionType ?? "suggest_template";
+  const conditionType = watchedValues.conditionType ?? "contains";
+  const actionValue = watchedValues.actionValue ?? "";
+  const isActive = watchedValues.isActive ?? true;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -296,7 +300,7 @@ export function RuleBuilderDialog({
               <div className="space-y-2">
                 <Label>Typ</Label>
                 <Select
-                  value={form.watch("conditionType")}
+                  value={conditionType}
                   onValueChange={(v) => form.setValue("conditionType", v as ConditionType)}
                 >
                   <SelectTrigger className="w-full">
@@ -364,7 +368,7 @@ export function RuleBuilderDialog({
               <div className="space-y-2">
                 <Label>Typ</Label>
                 <Select
-                  value={form.watch("actionType")}
+                  value={actionType}
                   onValueChange={(v) => {
                     form.setValue("actionType", v as ActionType);
                     form.setValue("actionValue", "");
@@ -386,7 +390,7 @@ export function RuleBuilderDialog({
               {/* Template selector */}
               {actionType === "suggest_template" && (
                 <TemplateSelectorField
-                  value={form.watch("actionValue")}
+                  value={actionValue || ""}
                   onChange={(v) => form.setValue("actionValue", v)}
                 />
               )}
@@ -407,7 +411,7 @@ export function RuleBuilderDialog({
               {/* Template for auto-book */}
               {actionType === "auto_book" && (
                 <TemplateSelectorField
-                  value={form.watch("actionValue")}
+                  value={actionValue || ""}
                   onChange={(v) => form.setValue("actionValue", v)}
                   label="Mall för automatisk bokföring"
                   description="Transaktioner som matchar denna regel bokförs automatiskt med vald mall."
@@ -430,7 +434,7 @@ export function RuleBuilderDialog({
               </p>
             </div>
             <Switch
-              checked={form.watch("isActive")}
+              checked={isActive}
               onCheckedChange={(checked) => form.setValue("isActive", checked)}
             />
           </div>

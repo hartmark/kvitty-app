@@ -2,7 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, workspaceProcedure } from "../init";
 import { categorizationRules } from "@/lib/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import {
   createCategorizationRuleSchema,
   updateCategorizationRuleSchema,
@@ -148,17 +148,20 @@ export const categorizationRulesRouter = router({
   updatePriorities: workspaceProcedure
     .input(updateRulePrioritiesSchema)
     .mutation(async ({ ctx, input }) => {
-      for (const { id, priority } of input.priorities) {
-        await ctx.db
-          .update(categorizationRules)
-          .set({ priority, updatedAt: new Date() })
-          .where(
-            and(
-              eq(categorizationRules.id, id),
-              eq(categorizationRules.workspaceId, ctx.workspaceId)
-            )
-          );
-      }
+      // Use transaction to ensure atomicity
+      await ctx.db.transaction(async (tx) => {
+        for (const { id, priority } of input.priorities) {
+          await tx
+            .update(categorizationRules)
+            .set({ priority, updatedAt: new Date() })
+            .where(
+              and(
+                eq(categorizationRules.id, id),
+                eq(categorizationRules.workspaceId, ctx.workspaceId)
+              )
+            );
+        }
+      });
 
       return { success: true };
     }),
@@ -203,26 +206,25 @@ export const categorizationRulesRouter = router({
   recordMatch: workspaceProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.db.query.categorizationRules.findFirst({
-        where: and(
-          eq(categorizationRules.id, input.id),
-          eq(categorizationRules.workspaceId, ctx.workspaceId)
-        ),
-      });
-
-      if (!existing) {
-        throw new TRPCError({ code: "NOT_FOUND" });
-      }
-
+      // Use SQL increment to avoid race conditions
       const [updated] = await ctx.db
         .update(categorizationRules)
         .set({
-          usageCount: existing.usageCount + 1,
+          usageCount: sql`${categorizationRules.usageCount} + 1`,
           lastMatchedAt: new Date(),
           updatedAt: new Date(),
         })
-        .where(eq(categorizationRules.id, input.id))
+        .where(
+          and(
+            eq(categorizationRules.id, input.id),
+            eq(categorizationRules.workspaceId, ctx.workspaceId)
+          )
+        )
         .returning();
+
+      if (!updated) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
 
       return updated;
     }),
