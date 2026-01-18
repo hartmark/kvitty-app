@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { GoogleLogo, Receipt } from "@phosphor-icons/react";
+import { GoogleLogo, Receipt, Copy, Check } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { authClient, signIn } from "@/lib/auth-client";
+import { isWebView, getWebViewSource } from "@/lib/utils/webview-detection";
 
 export function LoginForm({
   className,
@@ -25,7 +26,29 @@ export function LoginForm({
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inWebView, setInWebView] = useState(false);
+  const [webViewSource, setWebViewSource] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const isGoogleSSOEnabled = process.env.NEXT_PUBLIC_GOOGLE_SSO === "true";
+
+  useEffect(() => {
+    // TODO: Remove this testing override
+    setInWebView(true);
+    setWebViewSource("Instagram");
+    // Original code:
+    // setInWebView(isWebView());
+    // setWebViewSource(getWebViewSource());
+  }, []);
+
+  async function handleCopyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy link:", err);
+    }
+  }
 
   async function handleGoogleSignIn() {
     setIsGoogleLoading(true);
@@ -87,6 +110,25 @@ export function LoginForm({
           </div>
           {isGoogleSSOEnabled && (
             <>
+              {inWebView && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs dark:border-amber-900 dark:bg-amber-950">
+                  <p className="text-amber-800 dark:text-amber-200">
+                    Google-inloggning fungerar inte här
+                    {webViewSource && webViewSource !== "WebView"
+                      ? ` (${webViewSource})`
+                      : ""}
+                    .{" "}
+                    <button
+                      type="button"
+                      onClick={handleCopyLink}
+                      className="font-medium underline underline-offset-2 hover:text-amber-900 dark:hover:text-amber-100"
+                    >
+                      {copied ? "Kopierad!" : "Kopiera länk"}
+                    </button>{" "}
+                    och öppna i Chrome/Safari, eller använd e-post nedan.
+                  </p>
+                </div>
+              )}
               <Field>
                 <Button
                   type="button"
