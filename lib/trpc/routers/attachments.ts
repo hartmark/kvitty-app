@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { router, workspaceProcedure } from "../init";
 import { attachments, bankTransactions, auditLogs } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import { deleteFile } from "@/lib/storage";
+import { deleteFile } from "@/lib/storage/factory";
 
 export const attachmentsRouter = router({
   list: workspaceProcedure

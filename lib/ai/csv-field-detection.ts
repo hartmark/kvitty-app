@@ -1,6 +1,6 @@
 import { generateObject } from "ai";
 import { z } from "zod";
-import { bankTransactionModel } from "@/lib/ai";
+import { bankTransactionModel } from "./models";
 import type { AiFieldMapping, CsvFieldMapping } from "@/lib/validations/csv-import";
 
 // Schema for AI response

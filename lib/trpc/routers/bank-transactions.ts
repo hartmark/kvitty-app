@@ -14,7 +14,7 @@ import {
   createCsvImportProfileSchema,
   updateCsvImportProfileSchema,
 } from "@/lib/validations/csv-import";
-import { bankTransactionModel } from "@/lib/ai";
+import { bankTransactionModel } from "@/lib/ai/models";
 import { parseCSV, parseOFX, detectFileFormat } from "@/lib/utils/bank-import";
 import { parseRawCsv, applyMapping, getSampleValue, decodeBase64Content } from "@/lib/utils/csv-parser";
 import { detectCsvFieldMapping } from "@/lib/ai/csv-field-detection";

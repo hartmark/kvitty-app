@@ -1,6 +1,6 @@
 import { streamText } from "ai";
 import { z } from "zod";
-import { bookkeepingModel } from "@/lib/ai";
+import { bookkeepingModel } from "@/lib/ai/models";
 import { ASSISTANT_SYSTEM_PROMPT } from "@/lib/ai/assistant-prompt";
 import { createChatTools } from "@/lib/ai/chat-tools";
 import { getSession } from "@/lib/session";

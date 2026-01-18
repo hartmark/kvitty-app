@@ -27,7 +27,7 @@ import { generateAGIXml } from "@/lib/utils/agi-generator";
 import { decrypt } from "@/lib/utils/encryption";
 import { generateSalaryStatementPdf } from "@/lib/utils/salary-statement-pdf";
 import { sendSalaryStatementEmail } from "@/lib/email/send-salary-statement";
-import { uploadFile } from "@/lib/storage";
+import { uploadFile } from "@/lib/storage/factory";
 
 export const payrollRouter = router({
   listRuns: workspaceProcedure

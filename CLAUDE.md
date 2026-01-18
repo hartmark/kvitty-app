@@ -142,9 +142,10 @@ app/
 
 - **File Storage**
   - `lib/storage/` - Abstracted storage provider system
-    - `local.ts` - Local filesystem provider (`/public/uploads/`)
-    - `s3.ts` - AWS S3 + CloudFront provider
-    - `index.ts` - Provider factory and interface
+    - `factory.ts` - Provider factory and convenience functions
+    - `types.ts` - Storage provider interface and types
+    - `providers/local-provider.ts` - Local filesystem provider (`/public/uploads/`)
+    - `providers/s3-provider.ts` - AWS S3 + CloudFront provider
 
 - **Email**
   - `lib/email/` - Email templates and sending
@@ -153,6 +154,7 @@ app/
 
 - **AI Features**
   - `lib/ai/` - AI integration with Groq
+    - `models.ts` - Groq client and model configurations
     - `bank-transaction-extraction.ts` - Extract transaction data from images
     - `bookkeeping-assistant.ts` - Chat-based bookkeeping help
     - `receipt-analysis.ts` - Analyze receipt images
@@ -384,25 +386,23 @@ The application uses an abstracted file storage provider system that supports bo
 // Set in .env
 STORAGE_PROVIDER=local  # or "s3"
 
-// lib/storage/index.ts exports:
-export const storage = getStorageProvider(); // Automatically selects provider
+// Import from lib/storage/factory.ts:
+import { getStorageProvider } from "@/lib/storage/factory";
+const storage = getStorageProvider(); // Automatically selects provider
 ```
 
 **Storage Operations:**
 ```typescript
-import { storage } from "@/lib/storage";
+import { uploadFile, deleteFile, getUploadUrl } from "@/lib/storage/factory";
 
 // Upload file
-const url = await storage.uploadFile(buffer, path, contentType);
+const url = await uploadFile(buffer, path, contentType);
 
 // Delete file
-await storage.deleteFile(path);
+await deleteFile(path);
 
-// Get file URL (S3 returns CloudFront URL)
-const url = storage.getFileUrl(path);
-
-// Get presigned upload URL (S3 only, for direct browser uploads)
-const presignedUrl = await storage.getPresignedUploadUrl(key, contentType);
+// Get presigned upload URL (for direct browser uploads)
+const presignedUrl = await getUploadUrl(key, contentType);
 ```
 
 **File Upload Hook:**
@@ -418,8 +418,8 @@ const handleUpload = async (file: File) => {
 ```
 
 **Providers:**
-- **Local** (`lib/storage/local.ts`): Stores in `/public/uploads/`, serves via `/uploads/` path
-- **S3** (`lib/storage/s3.ts`): Uploads to S3, returns CloudFront CDN URL for fast global access
+- **Local** (`lib/storage/providers/local-provider.ts`): Stores in `/public/uploads/`, serves via `/uploads/` path
+- **S3** (`lib/storage/providers/s3-provider.ts`): Uploads to S3, returns CloudFront CDN URL for fast global access
 
 ### Forms Pattern
 All forms use React Hook Form with Zod validation:

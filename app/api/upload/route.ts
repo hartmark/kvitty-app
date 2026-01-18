@@ -3,7 +3,7 @@ import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { workspaceMembers, workspaces } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
-import { getStorageProvider } from "@/lib/storage";
+import { getStorageProvider } from "@/lib/storage/factory";
 
 /**
  * POST /api/upload

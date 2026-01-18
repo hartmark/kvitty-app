@@ -4,7 +4,7 @@ import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { workspaceMembers, workspaces } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
-import { getUploadUrl as getStorageUploadUrl } from "@/lib/storage";
+import { getUploadUrl as getStorageUploadUrl } from "@/lib/storage/factory";
 import {
   ALLOWED_MIME_TYPES,
   ALLOWED_EXTENSIONS,

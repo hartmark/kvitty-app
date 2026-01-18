@@ -4,7 +4,7 @@
  */
 
 import "dotenv/config";
-import { uploadFile, deleteFile, getStorageProvider } from "../lib/storage";
+import { uploadFile, deleteFile, getStorageProvider } from "../lib/storage/factory";
 
 async function testStorage() {
   const provider = process.env.STORAGE_PROVIDER || "local";

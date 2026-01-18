@@ -1,6 +1,6 @@
 import { generateObject } from "ai";
 import { z } from "zod";
-import { bookkeepingModel } from "@/lib/ai";
+import { bookkeepingModel } from "@/lib/ai/models";
 import { BOOKKEEPING_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { getSession } from "@/lib/session";
 import {

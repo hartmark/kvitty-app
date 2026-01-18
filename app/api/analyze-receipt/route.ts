@@ -1,6 +1,6 @@
 import { generateObject } from "ai";
 import { z } from "zod";
-import { visionModel } from "@/lib/ai";
+import { visionModel } from "@/lib/ai/models";
 import { getSession } from "@/lib/session";
 import {
   checkAndIncrementAIUsage,

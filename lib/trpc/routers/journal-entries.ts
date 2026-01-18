@@ -16,7 +16,7 @@ import {
   updateJournalEntrySchema,
 } from "@/lib/validations/journal-entry";
 import { previewSIEImportSchema, importSIESchema } from "@/lib/validations/sie-import";
-import { deleteFile } from "@/lib/storage";
+import { deleteFile } from "@/lib/storage/factory";
 import {
   parseSIEFileFromBuffer,
   filterVerificationsByDateRange,
