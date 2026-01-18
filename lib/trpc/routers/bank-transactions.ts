@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { generateObject } from "ai";
 import { router, workspaceProcedure } from "../init";
 import { bankTransactions, auditLogs, bankAccounts, journalEntries, bankImportBatches, csvImportProfiles, attachments } from "@/lib/db/schema";
-import { eq, and, isNull, inArray, or, count, desc, gte, lte, ilike, exists, notExists, sql } from "drizzle-orm";
+import { eq, and, isNull, inArray, or, count, desc, gte, lte, ilike, sql } from "drizzle-orm";
 import {
   createBankTransactionsSchema,
   updateBankTransactionSchema,
@@ -32,7 +32,8 @@ export const bankTransactionsRouter = router({
         workspaceId: z.string(),
         bankAccountId: z.string().optional(),
         unmappedOnly: z.boolean().optional(),
-        hasAttachments: z.enum(["all", "with", "without"]).optional(),
+        hasAttachments: z.enum(["with", "without"]).optional(),
+        hasComments: z.enum(["with", "without"]).optional(),
         dateFrom: z.string().optional(),
         dateTo: z.string().optional(),
         search: z.string().optional(),
@@ -51,22 +52,23 @@ export const bankTransactionsRouter = router({
         conditions.push(isNull(bankTransactions.mappedToJournalEntryId));
       }
 
-      // Filter by attachments
       if (input.hasAttachments === "with") {
         conditions.push(
-          exists(
-            ctx.db.select({ id: attachments.id })
-              .from(attachments)
-              .where(eq(attachments.bankTransactionId, bankTransactions.id))
-          )
+          sql`EXISTS (SELECT 1 FROM attachments WHERE attachments.bank_transaction_id = ${bankTransactions.id})`
         );
       } else if (input.hasAttachments === "without") {
         conditions.push(
-          notExists(
-            ctx.db.select({ id: attachments.id })
-              .from(attachments)
-              .where(eq(attachments.bankTransactionId, bankTransactions.id))
-          )
+          sql`NOT EXISTS (SELECT 1 FROM attachments WHERE attachments.bank_transaction_id = ${bankTransactions.id})`
+        );
+      }
+
+      if (input.hasComments === "with") {
+        conditions.push(
+          sql`EXISTS (SELECT 1 FROM comments WHERE comments.bank_transaction_id = ${bankTransactions.id})`
+        );
+      } else if (input.hasComments === "without") {
+        conditions.push(
+          sql`NOT EXISTS (SELECT 1 FROM comments WHERE comments.bank_transaction_id = ${bankTransactions.id})`
         );
       }
 

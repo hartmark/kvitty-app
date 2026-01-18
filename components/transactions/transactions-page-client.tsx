@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useQueryState, parseAsInteger, parseAsString, parseAsStringLiteral } from "nuqs";
+import { useQueryState, parseAsInteger, parseAsString, parseAsStringLiteral, parseAsBoolean } from "nuqs";
 import { useDebounce } from "@/hooks/use-debounce";
-import { MagnifyingGlass, X, FunnelSimple, Upload, Paperclip } from "@phosphor-icons/react";
+import { MagnifyingGlass, X, FunnelSimple, Upload, SlidersHorizontal } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,6 +15,13 @@ import {
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/layout/page-header";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { DatePicker } from "@/components/ui/date-picker";
 import { trpc } from "@/lib/trpc/client";
 import { useWorkspace } from "@/components/workspace-provider";
@@ -33,6 +40,9 @@ type QuickFilter = (typeof quickFilterOptions)[number];
 
 const attachmentsFilterOptions = ["all", "with", "without"] as const;
 type AttachmentsFilter = (typeof attachmentsFilterOptions)[number];
+
+const commentsFilterOptions = ["all", "with", "without"] as const;
+type CommentsFilter = (typeof commentsFilterOptions)[number];
 
 function getDateRangeForFilter(filter: QuickFilter): { dateFrom: string; dateTo: string } {
   const now = new Date();
@@ -78,9 +88,14 @@ export function TransactionsPageClient({
     "attachments",
     parseAsStringLiteral(attachmentsFilterOptions).withDefault("all")
   );
+  const [commentsFilter, setCommentsFilter] = useQueryState(
+    "comments",
+    parseAsStringLiteral(commentsFilterOptions).withDefault("all")
+  );
   const [selectedId, setSelectedId] = useQueryState("selected", parseAsString.withDefault(""));
   const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
   const [pageSize, setPageSize] = useQueryState("pageSize", parseAsInteger.withDefault(DEFAULT_PAGE_SIZE));
+  const [highlightMissing, setHighlightMissing] = useQueryState("highlight", parseAsBoolean.withDefault(false));
 
   // CSV import wizard state
   const [csvImportOpen, setCsvImportOpen] = useState(false);
@@ -126,6 +141,12 @@ export function TransactionsPageClient({
     setPage(1);
   };
 
+  // Handle comments filter
+  const handleCommentsFilterChange = (value: CommentsFilter) => {
+    setCommentsFilter(value === "all" ? null : value);
+    setPage(1);
+  };
+
   // Fetch bank accounts for filter dropdown
   const { data: bankAccounts } = trpc.bankAccounts.list.useQuery({
     workspaceId: workspace.id,
@@ -135,7 +156,8 @@ export function TransactionsPageClient({
   const { data, isLoading } = trpc.bankTransactions.list.useQuery({
     workspaceId: workspace.id,
     bankAccountId: bankAccountId || undefined,
-    hasAttachments: attachmentsFilter || undefined,
+    hasAttachments: attachmentsFilter === "all" ? undefined : attachmentsFilter || undefined,
+    hasComments: commentsFilter === "all" ? undefined : commentsFilter || undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
     search: search || undefined,
@@ -158,7 +180,7 @@ export function TransactionsPageClient({
     setPage(1);
   };
 
-  const hasFilters = search || dateFrom || dateTo || bankAccountId || attachmentsFilter;
+  const hasFilters = search || dateFrom || dateTo || bankAccountId || (attachmentsFilter && attachmentsFilter !== "all") || (commentsFilter && commentsFilter !== "all");
 
   const clearAllFilters = () => {
     setSearchInput("");
@@ -167,6 +189,7 @@ export function TransactionsPageClient({
     setDateTo(null);
     setBankAccountId(null);
     setAttachmentsFilter(null);
+    setCommentsFilter(null);
     setQuickFilter("all");
     setPage(1);
   };
@@ -252,40 +275,6 @@ export function TransactionsPageClient({
               )}
             </div>
 
-            <Separator orientation="vertical" className="hidden sm:block" />
-
-            <Select
-              value={bankAccountId || "all"}
-              onValueChange={handleBankAccountChange}
-            >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Alla konton" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Alla konton</SelectItem>
-                {bankAccounts?.map((account) => (
-                  <SelectItem key={account.id} value={account.id}>
-                    {account.accountNumber} - {account.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={attachmentsFilter || "all"}
-              onValueChange={(v) => handleAttachmentsFilterChange(v as AttachmentsFilter)}
-            >
-              <SelectTrigger className="w-[180px]">
-                <Paperclip className="size-4 text-muted-foreground" />
-                <SelectValue placeholder="Bilagor" />
-              </SelectTrigger>
-              <SelectContent className="align-start">
-                <SelectItem value="all">Alla</SelectItem>
-                <SelectItem value="with">Med bilagor</SelectItem>
-                <SelectItem value="without">Inga bilagor</SelectItem>
-              </SelectContent>
-            </Select>
-
             <DatePicker
               value={dateFrom}
               onChange={handleDateFromChange}
@@ -296,6 +285,86 @@ export function TransactionsPageClient({
               onChange={handleDateToChange}
               placeholder="Till datum"
             />
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon" className="relative">
+                  <SlidersHorizontal className="size-4" />
+                  {(bankAccountId || (attachmentsFilter && attachmentsFilter !== "all") || (commentsFilter && commentsFilter !== "all")) && (
+                    <span className="absolute -top-1 -right-1 size-2 rounded-full bg-primary" />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64" align="end">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Bankkonto</Label>
+                    <Select
+                      value={bankAccountId || "all"}
+                      onValueChange={handleBankAccountChange}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Alla konton" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Alla konton</SelectItem>
+                        {bankAccounts?.map((account) => (
+                          <SelectItem key={account.id} value={account.id}>
+                            {account.accountNumber} - {account.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Bilagor</Label>
+                    <Select
+                      value={attachmentsFilter || "all"}
+                      onValueChange={(v) => handleAttachmentsFilterChange(v as AttachmentsFilter)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Bilagor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Alla</SelectItem>
+                        <SelectItem value="with">Med bilagor</SelectItem>
+                        <SelectItem value="without">Utan bilagor</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Kommentarer</Label>
+                    <Select
+                      value={commentsFilter || "all"}
+                      onValueChange={(v) => handleCommentsFilterChange(v as CommentsFilter)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Kommentarer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Alla</SelectItem>
+                        <SelectItem value="with">Med kommentarer</SelectItem>
+                        <SelectItem value="without">Utan kommentarer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Visningsalternativ</Label>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="highlight-missing"
+                        checked={highlightMissing}
+                        onCheckedChange={(checked) => setHighlightMissing(checked === true ? true : null)}
+                      />
+                      <Label htmlFor="highlight-missing" className="text-sm font-normal cursor-pointer">
+                        Markera saknade bilagor
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             {hasFilters && (
               <Button
@@ -325,6 +394,7 @@ export function TransactionsPageClient({
           onPageChange={handlePageChange}
           onPageSizeChange={handlePageSizeChange}
           isLoading={isLoading}
+          highlightMissingAttachments={highlightMissing}
         />
       </div>
 

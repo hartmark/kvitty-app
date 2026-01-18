@@ -35,6 +35,7 @@ interface BankTransactionsTableProps {
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
   isLoading?: boolean;
+  highlightMissingAttachments?: boolean;
 }
 
 export function BankTransactionsTable({
@@ -51,6 +52,7 @@ export function BankTransactionsTable({
   onPageChange,
   onPageSizeChange,
   isLoading,
+  highlightMissingAttachments,
 }: BankTransactionsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [selectedTransaction, setSelectedTransaction] =
@@ -116,11 +118,14 @@ export function BankTransactionsTable({
                 </TableRow>
               ))
             ) : table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
+              table.getRowModel().rows.map((row) => {
+                const hasAttachments = (row.original.attachments?.length ?? 0) > 0;
+                const shouldHighlight = highlightMissingAttachments && !hasAttachments;
+                return (
                 <TableRow
                   key={row.id}
                   onClick={() => setSelectedTransaction(row.original)}
-                  className="cursor-pointer"
+                  className={`cursor-pointer ${shouldHighlight ? "bg-red-50 dark:bg-red-950/20" : ""}`}
                   data-state={row.getIsSelected() && "selected"}
                 >
                   {row.getVisibleCells().map((cell) => (
@@ -129,7 +134,7 @@ export function BankTransactionsTable({
                     </TableCell>
                   ))}
                 </TableRow>
-              ))
+              )})
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center px-4">
