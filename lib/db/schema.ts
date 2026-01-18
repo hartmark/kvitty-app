@@ -263,6 +263,8 @@ export const workspaces = pgTable("workspaces", {
   inboxEmailSlug: text("inbox_email_slug"), // e.g., "kvitty" → kvitty.{slug}@inbox.kvitty.se
   // Enskild firma specific fields
   ownerPersonalNumber: text("owner_personal_number"), // Encrypted personnummer for enskild firma owner
+  // Feature flags (managed by super admin via Drizzle Studio)
+  featureFlags: jsonb("feature_flags").$type<Record<string, boolean>>().default({}).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   createdBy: text("created_by").references(() => user.id),

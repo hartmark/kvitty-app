@@ -19,6 +19,8 @@ Kvitty is a comprehensive Swedish bookkeeping and invoicing SaaS application. It
 
 **Never run `pnpm dev` or `pnpm build` automatically.** These commands should only be run manually by the user.
 
+**Never create `index.ts` barrel export files.** Import directly from the specific file instead (e.g., `import { hasFeature } from "@/lib/feature-flags/utils"` not `from "@/lib/feature-flags"`).
+
 ## Development Commands
 
 **IMPORTANT:** Never run `pnpm dev` or `pnpm build` automatically. These commands should only be run manually by the user.
@@ -173,6 +175,14 @@ app/
     - `tax-tables.ts` - Swedish tax tables from Skatteverket
     - `employer-contribution-rates.ts` - Swedish employer contribution rates
     - `bas-accounts.ts` - BAS account plan
+
+- **Feature Flags**
+  - `lib/feature-flags/` - Workspace-scoped feature flag system
+    - `types.ts` - Flag registry (`FLAGS`) and type definitions
+    - `utils.ts` - Core utilities (`hasFeature`, `hasFeatures`, `getEnabledFeatures`)
+    - `hooks.ts` - React hooks (`useFeatureFlag`, `useFeatureFlags`, `useEnabledFeatures`)
+    - `middleware.ts` - tRPC middleware (`requireFeature`, `requireAnyFeature`, `requireAllFeatures`)
+  - `components/feature-gate.tsx` - Component guards (`<FeatureGate>`, `<MultiFeatureGate>`)
 
 - **Components**
   - `components/ui/` - shadcn/ui components (40+ components)
@@ -463,6 +473,102 @@ The shared `<Field>` component (`components/ui/field.tsx`) handles labels, error
 - `lib/validations/employees.ts` - Employee schemas
 - `lib/validations/bank.ts` - Bank transaction schemas
 - etc.
+
+### Feature Flags Pattern
+Workspace-scoped feature flags for enabling/disabling functionality per workspace. Managed by super admins via Drizzle Studio.
+
+**Flag Registry:**
+All flags are defined in `lib/feature-flags/types.ts`:
+```typescript
+export const FLAGS = {
+  AI_BOOKKEEPING_ASSISTANT: "ai_bookkeeping_assistant",
+  AI_RECEIPT_ANALYSIS: "ai_receipt_analysis",
+  ADVANCED_REPORTING: "advanced_reporting",
+  PEPPOL_EINVOICING: "peppol_einvoicing",
+  API_ACCESS: "api_access",
+  // Add new flags here
+} as const;
+
+export type FeatureFlag = (typeof FLAGS)[keyof typeof FLAGS];
+```
+
+**Server-side Usage:**
+```typescript
+import { hasFeature } from "@/lib/feature-flags/utils";
+import { FLAGS } from "@/lib/feature-flags/types";
+
+// In server components or tRPC procedures
+const workspace = await db.query.workspaces.findFirst(...);
+if (hasFeature(workspace, FLAGS.ADVANCED_REPORTING)) {
+  // Feature is enabled
+}
+```
+
+**Client-side Usage:**
+```typescript
+import { useFeatureFlag } from "@/lib/feature-flags/hooks";
+import { FLAGS } from "@/lib/feature-flags/types";
+
+function MyComponent() {
+  const hasAdvancedReporting = useFeatureFlag(FLAGS.ADVANCED_REPORTING);
+
+  if (!hasAdvancedReporting) {
+    return <UpgradePrompt />;
+  }
+
+  return <AdvancedReportingUI />;
+}
+```
+
+**Component Guards:**
+```typescript
+import { FeatureGate } from "@/components/feature-gate";
+import { FLAGS } from "@/lib/feature-flags/types";
+
+// Show content only when feature is enabled
+<FeatureGate flag={FLAGS.AI_BOOKKEEPING_ASSISTANT}>
+  <AIAssistantPanel />
+</FeatureGate>
+
+// With fallback for disabled state
+<FeatureGate
+  flag={FLAGS.ADVANCED_REPORTING}
+  fallback={<UpgradeBanner />}
+>
+  <AdvancedReports />
+</FeatureGate>
+```
+
+**tRPC Middleware:**
+```typescript
+import { workspaceProcedure } from "@/lib/trpc/init";
+import { requireFeature } from "@/lib/feature-flags/middleware";
+import { FLAGS } from "@/lib/feature-flags/types";
+
+export const advancedRouter = router({
+  generateReport: workspaceProcedure
+    .use(requireFeature(FLAGS.ADVANCED_REPORTING))
+    .query(async ({ ctx }) => {
+      // Only runs if feature is enabled, throws FORBIDDEN otherwise
+    }),
+});
+```
+
+**Note:** Always import directly from specific files (`@/lib/feature-flags/utils`, `@/lib/feature-flags/types`, etc.), never use barrel exports.
+
+**Enabling Flags (Super Admin via Drizzle Studio):**
+1. Run `pnpm db:studio`
+2. Navigate to `workspaces` table
+3. Edit the `featureFlags` JSONB column:
+   ```json
+   {"ai_bookkeeping_assistant": true, "advanced_reporting": true}
+   ```
+4. Save - changes take effect on next page load
+
+**Adding New Flags:**
+1. Add the flag key to `FLAGS` in `lib/feature-flags/types.ts`
+2. TypeScript autocomplete works automatically
+3. No database migration needed (JSONB accepts any keys)
 
 ## Swedish Accounting Features
 
