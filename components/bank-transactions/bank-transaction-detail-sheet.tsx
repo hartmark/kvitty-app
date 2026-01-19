@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useFileUpload } from "@/lib/hooks/use-file-upload";
-import { Paperclip, ChatCircle, Trash, FilePdf, Image as ImageIcon, File, FileXls, FileCsv, Pencil, Download, Sparkle, Lightning } from "@phosphor-icons/react";
+import { Paperclip, ChatCircle, Trash, FilePdf, Image as ImageIcon, File, FileXls, FileCsv, Pencil, Download, Sparkle, Lightning, Envelope } from "@phosphor-icons/react";
 import {
   Sheet,
   SheetContent,
@@ -27,10 +27,16 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { trpc } from "@/lib/trpc/client";
 import { VERIFICATION_TEMPLATES } from "@/lib/consts/verification-templates";
 import type { bankTransactions } from "@/lib/db/schema";
 import { EditBankTransactionDialog } from "./edit-bank-transaction-dialog";
+import { SearchInboxDialog } from "./search-inbox-dialog";
 import { MentionTextarea } from "@/components/comments/mention-textarea";
 import { CommentContent } from "@/components/comments/comment-content";
 
@@ -59,6 +65,7 @@ export function BankTransactionDetailSheet({
   const [isDragging, setIsDragging] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [searchInboxDialogOpen, setSearchInboxDialogOpen] = useState(false);
 
   const { data: details } = trpc.bankTransactions.get.useQuery(
     { workspaceId, bankTransactionId: transaction?.id ?? "" },
@@ -258,26 +265,48 @@ export function BankTransactionDetailSheet({
           <SheetDescription>
             {transaction.accountingDate || "Inget datum"}
           </SheetDescription>
-          <div className="absolute top-3 right-12 flex gap-2">
-            <Button
-              variant="outline"
-              size="icon-sm"
-              onClick={() => setEditDialogOpen(true)}
-            >
-              <Pencil className="size-4" />
-            </Button>
-            <Button
-              variant="destructive"
-              size="icon-sm"
-              onClick={() => setDeleteDialogOpen(true)}
-              disabled={deleteTransaction.isPending}
-            >
-              {deleteTransaction.isPending ? (
-                <Spinner />
-              ) : (
-                <Trash className="size-4" />
-              )}
-            </Button>
+          <div className="absolute top-3 right-12 flex gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  onClick={() => setSearchInboxDialogOpen(true)}
+                >
+                  <Envelope className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Sök i inbox</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  onClick={() => setEditDialogOpen(true)}
+                >
+                  <Pencil className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Redigera</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="destructive"
+                  size="icon-sm"
+                  onClick={() => setDeleteDialogOpen(true)}
+                  disabled={deleteTransaction.isPending}
+                >
+                  {deleteTransaction.isPending ? (
+                    <Spinner />
+                  ) : (
+                    <Trash className="size-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Ta bort</TooltipContent>
+            </Tooltip>
           </div>
         </SheetHeader>
 
@@ -595,6 +624,13 @@ export function BankTransactionDetailSheet({
         onOpenChange={setEditDialogOpen}
         transaction={transaction}
         workspaceId={workspaceId}
+      />
+
+      <SearchInboxDialog
+        open={searchInboxDialogOpen}
+        onOpenChange={setSearchInboxDialogOpen}
+        workspaceId={workspaceId}
+        bankTransactionId={transaction.id}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
