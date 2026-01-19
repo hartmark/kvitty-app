@@ -14,8 +14,14 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { Badge } from "@/components/ui/badge";
 import { authClient, signIn } from "@/lib/auth-client";
 import { isWebView, getWebViewSource } from "@/lib/utils/webview-detection";
+import {
+  getLoginMethodCookie,
+  setLoginMethodCookie,
+  type LoginMethod,
+} from "@/lib/login-method-cookie";
 
 export function LoginForm({
   className,
@@ -29,15 +35,15 @@ export function LoginForm({
   const [inWebView, setInWebView] = useState(false);
   const [webViewSource, setWebViewSource] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [lastUsedMethod, setLastUsedMethod] = useState<LoginMethod | null>(
+    null
+  );
   const isGoogleSSOEnabled = process.env.NEXT_PUBLIC_GOOGLE_SSO === "true";
 
   useEffect(() => {
-    // TODO: Remove this testing override
-    setInWebView(true);
-    setWebViewSource("Instagram");
-    // Original code:
-    // setInWebView(isWebView());
-    // setWebViewSource(getWebViewSource());
+    setInWebView(isWebView());
+    setWebViewSource(getWebViewSource());
+    setLastUsedMethod(getLoginMethodCookie());
   }, []);
 
   async function handleCopyLink() {
@@ -58,6 +64,8 @@ export function LoginForm({
         provider: "google",
         callbackURL: "/app",
       });
+      setLoginMethodCookie("google");
+      setLastUsedMethod("google");
     } catch (err) {
       setError("Kunde inte logga in med Google. Försök igen.");
       console.error(err);
@@ -80,6 +88,8 @@ export function LoginForm({
         throw new Error(signInError.message);
       }
 
+      setLoginMethodCookie("email");
+      setLastUsedMethod("email");
       router.push(`/magic-link-sent?email=${encodeURIComponent(email)}`);
     } catch (err) {
       setError("Kunde inte skicka inloggningslänk. Försök igen.");
@@ -130,19 +140,34 @@ export function LoginForm({
                 </div>
               )}
               <Field>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleGoogleSignIn}
-                  disabled={isGoogleLoading || isLoading}
-                >
-                  {isGoogleLoading ? (
-                    <Spinner />
-                  ) : (
-                    <GoogleLogo className="size-4" weight="bold" />
+                <div className="relative w-full">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleGoogleSignIn}
+                    disabled={isGoogleLoading || isLoading || inWebView}
+                    className={cn(
+                      "w-full",
+                      lastUsedMethod === "google" &&
+                        "border-blue-400/50 ring-1 ring-blue-400/10"
+                    )}
+                  >
+                    {isGoogleLoading ? (
+                      <Spinner />
+                    ) : (
+                      <GoogleLogo className="size-4" weight="bold" />
+                    )}
+                    Fortsätt med Google
+                  </Button>
+                  {lastUsedMethod === "google" && (
+                    <Badge
+                      variant="blue"
+                      className="absolute -right-2 -top-2 text-[10px] bg-blue-100 dark:bg-blue-900/50"
+                    >
+                      Senast använd
+                    </Badge>
                   )}
-                  Fortsätt med Google
-                </Button>
+                </div>
               </Field>
               <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
                 <span className="relative z-10 bg-background px-2 text-muted-foreground">
@@ -152,16 +177,30 @@ export function LoginForm({
             </>
           )}
           <Field>
-            <FieldLabel htmlFor="email">E-post</FieldLabel>
-            <Input
-              id="email"
-              type="email"
-              placeholder="din@epost.se"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={isLoading}
-            />
+            <div className="relative">
+              <FieldLabel htmlFor="email">E-post</FieldLabel>
+              <Input
+                id="email"
+                type="email"
+                placeholder="din@epost.se"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
+                className={cn(
+                  lastUsedMethod === "email" &&
+                    "border-blue-400/50 ring-1 ring-blue-400/10"
+                )}
+              />
+              {lastUsedMethod === "email" && (
+                <Badge
+                  variant="blue"
+                  className="absolute -right-2 -top-2 text-[10px] bg-blue-100 dark:bg-blue-900/50"
+                >
+                  Senast använd
+                </Badge>
+              )}
+            </div>
           </Field>
           {error && (
             <p className="text-sm text-red-500 text-center">{error}</p>
