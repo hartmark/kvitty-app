@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useFileUpload } from "@/lib/hooks/use-file-upload";
-import { Paperclip, ChatCircle, Trash, FilePdf, Image as ImageIcon, File, FileXls, FileCsv, Pencil, Download, Sparkle, Lightning, Envelope } from "@phosphor-icons/react";
+import { Paperclip, ChatCircle, Trash, FilePdf, Image as ImageIcon, File, FileXls, FileCsv, Pencil, Download, Sparkle, Lightning, Envelope, LinkBreak } from "@phosphor-icons/react";
 import {
   Sheet,
   SheetContent,
@@ -112,6 +112,21 @@ export function BankTransactionDetailSheet({
         bankTransactionId: transaction?.id,
       });
       utils.bankTransactions.list.invalidate({ workspaceId });
+    },
+  });
+
+  const unlinkInboxAttachment = trpc.inbox.unlinkAttachment.useMutation({
+    onSuccess: () => {
+      utils.bankTransactions.get.invalidate({
+        workspaceId,
+        bankTransactionId: transaction?.id,
+      });
+      utils.bankTransactions.list.invalidate({ workspaceId });
+      utils.inbox.list.invalidate({ workspaceId });
+      toast.success("Kopplingen har tagits bort");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Kunde inte ta bort kopplingen");
     },
   });
 
@@ -420,7 +435,7 @@ export function BankTransactionDetailSheet({
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="attachments" className="gap-2">
                 <Paperclip className="size-4" />
-                Bilagor ({details?.attachments?.length || 0})
+                Bilagor ({(details?.attachments?.length || 0) + (details?.inboxAttachmentLinks?.length || 0)})
               </TabsTrigger>
               <TabsTrigger value="comments" className="gap-2">
                 <ChatCircle className="size-4" />
@@ -462,6 +477,7 @@ export function BankTransactionDetailSheet({
               </label>
 
               <div className="space-y-2">
+                {/* Regular attachments */}
                 {details?.attachments?.map((attachment) => {
                   const FileIcon = getFileIcon(attachment.mimeType, attachment.fileName);
                   const isImage = isImageFile(attachment.mimeType);
@@ -541,7 +557,89 @@ export function BankTransactionDetailSheet({
                     </div>
                   );
                 })}
-                {(!details?.attachments || details.attachments.length === 0) && (
+
+                {/* Linked inbox attachments */}
+                {details?.inboxAttachmentLinks?.map((link) => {
+                  const attachment = link.inboxAttachment;
+                  const FileIcon = getFileIcon(attachment.mimeType, attachment.fileName);
+                  const isImage = isImageFile(attachment.mimeType);
+
+                  return (
+                    <div
+                      key={link.id}
+                      className="flex items-center gap-3 p-3 border border-dashed rounded-lg group"
+                    >
+                      {isImage ? (
+                        <a
+                          href={attachment.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0"
+                        >
+                          <img
+                            src={attachment.fileUrl}
+                            alt={attachment.fileName}
+                            className="size-12 object-cover rounded border"
+                          />
+                        </a>
+                      ) : (
+                        <div className="size-12 flex items-center justify-center bg-muted rounded shrink-0">
+                          <FileIcon className="size-6 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <a
+                          href={attachment.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm font-medium hover:underline truncate block"
+                        >
+                          {attachment.fileName}
+                        </a>
+                        <p className="text-xs text-muted-foreground">
+                          {formatFileSize(attachment.fileSize)}
+                        </p>
+                        <p className="text-xs text-primary">
+                          <Envelope className="size-3 inline mr-1" />
+                          {attachment.inboxEmail?.subject || "Från inbox"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          onClick={() => handleDownloadFile(attachment.fileUrl, attachment.fileName)}
+                          title="Ladda ner fil"
+                        >
+                          <Download className="size-4" />
+                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8"
+                              onClick={() =>
+                                unlinkInboxAttachment.mutate({
+                                  workspaceId,
+                                  linkId: link.id,
+                                })
+                              }
+                              disabled={unlinkInboxAttachment.isPending}
+                            >
+                              <LinkBreak className="size-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Ta bort koppling</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {(!details?.attachments || details.attachments.length === 0) &&
+                  (!details?.inboxAttachmentLinks || details.inboxAttachmentLinks.length === 0) && (
                   <p className="text-sm text-muted-foreground text-center py-4">
                     Inga bilagor
                   </p>

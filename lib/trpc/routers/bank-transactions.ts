@@ -54,11 +54,17 @@ export const bankTransactionsRouter = router({
 
       if (input.hasAttachments === "with") {
         conditions.push(
-          sql`EXISTS (SELECT 1 FROM attachments WHERE attachments.bank_transaction_id = ${bankTransactions.id})`
+          sql`(
+            EXISTS (SELECT 1 FROM attachments WHERE attachments.bank_transaction_id = ${bankTransactions.id})
+            OR EXISTS (SELECT 1 FROM inbox_attachment_links WHERE inbox_attachment_links.bank_transaction_id = ${bankTransactions.id})
+          )`
         );
       } else if (input.hasAttachments === "without") {
         conditions.push(
-          sql`NOT EXISTS (SELECT 1 FROM attachments WHERE attachments.bank_transaction_id = ${bankTransactions.id})`
+          sql`(
+            NOT EXISTS (SELECT 1 FROM attachments WHERE attachments.bank_transaction_id = ${bankTransactions.id})
+            AND NOT EXISTS (SELECT 1 FROM inbox_attachment_links WHERE inbox_attachment_links.bank_transaction_id = ${bankTransactions.id})
+          )`
         );
       }
 
@@ -134,6 +140,17 @@ export const bankTransactionsRouter = router({
         ),
         with: {
           attachments: true,
+          inboxAttachmentLinks: {
+            with: {
+              inboxAttachment: {
+                with: {
+                  inboxEmail: {
+                    columns: { id: true, subject: true, fromEmail: true },
+                  },
+                },
+              },
+            },
+          },
           comments: {
             orderBy: (c, { desc }) => [desc(c.createdAt)],
             with: {
