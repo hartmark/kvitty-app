@@ -129,7 +129,7 @@ export function CreateInvoiceDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="min-w-lg">
+        <DialogContent className="w-full sm:min-w-lg">
           <DialogHeader>
             <DialogTitle>Ny faktura</DialogTitle>
           </DialogHeader>

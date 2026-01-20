@@ -244,7 +244,7 @@ export function PersonalDetailActions({ employee }: PersonalDetailActionsProps) 
       </div>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="min-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-full sm:min-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Redigera anställd</DialogTitle>
           </DialogHeader>

@@ -111,7 +111,7 @@ export function ProductFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-lg">
+      <DialogContent className="w-full sm:min-w-lg">
         <DialogHeader>
           <DialogTitle>{product ? "Redigera produkt" : "Ny produkt"}</DialogTitle>
         </DialogHeader>

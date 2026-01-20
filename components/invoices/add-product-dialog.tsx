@@ -87,7 +87,7 @@ export function AddProductDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-xl max-h-[60vh] flex flex-col">
+      <DialogContent className="w-full sm:min-w-xl max-h-[60vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Lägg till produkt</DialogTitle>
         </DialogHeader>

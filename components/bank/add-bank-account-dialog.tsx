@@ -62,7 +62,7 @@ export function AddBankAccountDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-lg">
+      <DialogContent className="w-full sm:min-w-lg">
         <DialogHeader>
           <DialogTitle>Lägg till bankkonto</DialogTitle>
         </DialogHeader>

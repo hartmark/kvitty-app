@@ -104,7 +104,7 @@ export function AddEmployeeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-lg">
+      <DialogContent className="w-full sm:min-w-lg">
         <DialogHeader>
           <DialogTitle>Lägg till anställd</DialogTitle>
         </DialogHeader>

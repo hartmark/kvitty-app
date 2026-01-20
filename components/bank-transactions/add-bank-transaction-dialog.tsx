@@ -153,7 +153,7 @@ export function AddBankTransactionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="w-full sm:min-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Lägg till banktransaktioner</DialogTitle>
           <DialogDescription>

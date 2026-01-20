@@ -70,7 +70,7 @@ export function CreateCustomerInlineDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-xl">
+      <DialogContent className="w-full sm:min-w-xl">
         <DialogHeader>
           <DialogTitle>Skapa ny kund</DialogTitle>
           <DialogDescription>

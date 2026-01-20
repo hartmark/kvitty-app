@@ -422,7 +422,7 @@ export function CsvImportWizard({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="min-w-2xl max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="w-full sm:min-w-2xl lg:min-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>
             {step === "upload" && "Importera CSV-fil"}
