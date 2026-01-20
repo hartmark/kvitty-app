@@ -1,14 +1,29 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import type { Currency } from "./validations/currency";
+import { currencyLocales } from "./validations/currency";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("sv-SE", {
+/**
+ * Format amount as currency with proper symbol and locale
+ */
+export function formatCurrency(amount: number, currency: Currency = "SEK"): string {
+  return new Intl.NumberFormat(currencyLocales[currency], {
     style: "currency",
-    currency: "SEK",
+    currency: currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+/**
+ * Format amount without currency symbol (for display in tables/forms)
+ */
+export function formatAmount(amount: number, currency: Currency = "SEK"): string {
+  return new Intl.NumberFormat(currencyLocales[currency], {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);

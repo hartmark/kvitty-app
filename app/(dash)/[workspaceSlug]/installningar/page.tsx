@@ -4,6 +4,7 @@ import { workspaces } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { PageHeader } from "@/components/layout/page-header";
 import { WorkspaceSettingsForm } from "@/components/settings/workspace-settings-form";
+import { SIEImportSection } from "@/components/settings/sie-import-section";
 
 export const metadata: Metadata = {
   title: "Inställningar — Kvitty",
@@ -40,6 +41,8 @@ export default async function SettingsPage({
         </div>
 
         <WorkspaceSettingsForm workspace={workspace} />
+
+        <SIEImportSection workspaceId={workspace.id} workspaceSlug={workspaceSlug} />
       </div>
     </>
   );

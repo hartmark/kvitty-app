@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { productUnits, productTypes, marginSchemeTypes } from "./product";
+import { currencies } from "./currency";
 
 // ROT/RUT deduction types
 export const rotRutTypes = ["rot", "rut"] as const;
@@ -30,6 +31,7 @@ export const createInvoiceSchema = z.object({
   invoiceDate: z.string().date("Ogiltigt fakturadatum"),
   dueDate: z.string().date("Ogiltigt förfallodatum"),
   reference: z.string().max(50).optional(),
+  currency: z.enum(currencies).optional(),
 });
 
 // Full update schema with lines
@@ -90,6 +92,7 @@ export const updateInvoiceMetadataSchema = z.object({
   invoiceDate: z.string().date("Ogiltigt fakturadatum").optional(),
   dueDate: z.string().date("Ogiltigt förfallodatum").optional(),
   reference: z.string().max(50).optional().nullable(),
+  currency: z.enum(currencies).optional(),
 });
 
 // Payment methods

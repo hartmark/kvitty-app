@@ -8,6 +8,8 @@ import {
   fiscalPeriods,
   auditLogs,
   templateUsage,
+  sieImportBatches,
+  workspaces,
 } from "@/lib/db/schema";
 import { eq, and, desc, sql, count, ilike, gte, lte, or } from "drizzle-orm";
 import { VERIFICATION_TEMPLATES } from "@/lib/consts/verification-templates";
@@ -16,7 +18,7 @@ import {
   updateJournalEntrySchema,
 } from "@/lib/validations/journal-entry";
 import { previewSIEImportSchema, importSIESchema } from "@/lib/validations/sie-import";
-import { deleteFile } from "@/lib/storage/factory";
+import { deleteFile, uploadFile } from "@/lib/storage/factory";
 import {
   parseSIEFileFromBuffer,
   filterVerificationsByDateRange,
@@ -600,6 +602,18 @@ export const journalEntriesRouter = router({
   importSIE: workspaceProcedure
     .input(importSIESchema)
     .mutation(async ({ ctx, input }) => {
+      // Get workspace to access slug for file upload
+      const workspace = await ctx.db.query.workspaces.findFirst({
+        where: eq(workspaces.id, ctx.workspaceId),
+      });
+
+      if (!workspace) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Arbetsytan hittades inte",
+        });
+      }
+
       // Verify the fiscal period exists and is not locked
       const period = await ctx.db.query.fiscalPeriods.findFirst({
         where: and(
@@ -620,6 +634,31 @@ export const journalEntriesRouter = router({
           code: "BAD_REQUEST",
           message: `Räkenskapsåret ${period.label} är låst och kan inte ändras`,
         });
+      }
+
+      // Upload file if fileContent is provided
+      let fileUrl: string | undefined = input.fileUrl;
+      if (input.fileContent && !fileUrl) {
+        try {
+          const buffer = Buffer.from(input.fileContent, "base64");
+          const fileName = input.sourceFileName || `sie-import-${Date.now()}.sie`;
+          const contentType = input.fileFormat === "sie5" ? "application/xml" : "text/plain";
+          const uploadResult = await uploadFile(buffer, fileName, contentType, workspace.slug);
+          fileUrl = uploadResult.url;
+        } catch (error) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: `Kunde inte ladda upp filen: ${error instanceof Error ? error.message : "Okänt fel"}`,
+          });
+        }
+      }
+
+      // Determine file format if not provided
+      let fileFormat: "sie4" | "sie5" = input.fileFormat || "sie4";
+      if (input.fileContent && !input.fileFormat) {
+        const buffer = Buffer.from(input.fileContent, "base64");
+        const start = buffer.slice(0, 100).toString("utf-8");
+        fileFormat = start.includes("<?xml") || start.includes("<sie:") ? "sie5" : "sie4";
       }
 
       // Filter verifications to only those within the period date range
@@ -684,64 +723,117 @@ export const journalEntriesRouter = router({
 
       const duplicateCount = verificationsInPeriod.length - newVerifications.length;
 
-      if (newVerifications.length === 0) {
-        return {
-          imported: 0,
-          skipped: duplicateCount,
-          message: "Alla verifikationer fanns redan i systemet",
-        };
-      }
+      // Create import batch record
+      const [importBatch] = await ctx.db
+        .insert(sieImportBatches)
+        .values({
+          workspaceId: ctx.workspaceId,
+          fiscalPeriodId: input.fiscalPeriodId,
+          fileName: input.sourceFileName || "unknown.sie",
+          fileFormat,
+          fileUrl: fileUrl || null,
+          status: "processing",
+          totalVerifications: verificationsInPeriod.length,
+          importedVerifications: 0,
+          duplicateVerifications: duplicateCount,
+          createdBy: ctx.session.user.id,
+        })
+        .returning();
 
-      // Use transaction for atomic import
-      const importedIds = await ctx.db.transaction(async (tx) => {
-        // Get next verification number within transaction
-        const nextNumberResult = await tx
-          .select({ maxNumber: sql<number>`MAX(${journalEntries.verificationNumber})` })
-          .from(journalEntries)
-          .where(
-            and(
-              eq(journalEntries.workspaceId, ctx.workspaceId),
-              eq(journalEntries.fiscalPeriodId, input.fiscalPeriodId)
-            )
-          );
+      let importedIds: string[] = [];
+      let importError: string | null = null;
 
-        let nextNumber = (nextNumberResult[0]?.maxNumber || 0) + 1;
-        const ids: string[] = [];
-
-        for (const verification of newVerifications) {
-          // Create the journal entry
-          const [entry] = await tx
-            .insert(journalEntries)
-            .values({
-              workspaceId: ctx.workspaceId,
-              fiscalPeriodId: input.fiscalPeriodId,
-              verificationNumber: nextNumber++,
-              entryDate: verification.date,
-              description: verification.description || "Importerad från SIE",
-              entryType: "annat",
-              sourceType: "sie_import",
-              createdBy: ctx.session.user.id,
+      try {
+        if (newVerifications.length === 0) {
+          // Update batch record for no imports
+          await ctx.db
+            .update(sieImportBatches)
+            .set({
+              status: "completed",
+              importedVerifications: 0,
             })
-            .returning();
+            .where(eq(sieImportBatches.id, importBatch.id));
 
-          // Create the entry lines
-          await tx.insert(journalEntryLines).values(
-            verification.lines.map((line, index) => ({
-              journalEntryId: entry.id,
-              accountNumber: line.accountNumber,
-              accountName: line.accountName,
-              debit: line.debit > 0 ? line.debit.toString() : null,
-              credit: line.credit > 0 ? line.credit.toString() : null,
-              description: line.description || null,
-              sortOrder: index,
-            }))
-          );
-
-          ids.push(entry.id);
+          return {
+            imported: 0,
+            skipped: duplicateCount,
+            message: "Alla verifikationer fanns redan i systemet",
+            importBatchId: importBatch.id,
+          };
         }
 
-        return ids;
-      });
+        // Use transaction for atomic import
+        importedIds = await ctx.db.transaction(async (tx) => {
+          // Get next verification number within transaction
+          const nextNumberResult = await tx
+            .select({ maxNumber: sql<number>`MAX(${journalEntries.verificationNumber})` })
+            .from(journalEntries)
+            .where(
+              and(
+                eq(journalEntries.workspaceId, ctx.workspaceId),
+                eq(journalEntries.fiscalPeriodId, input.fiscalPeriodId)
+              )
+            );
+
+          let nextNumber = (nextNumberResult[0]?.maxNumber || 0) + 1;
+          const ids: string[] = [];
+
+          for (const verification of newVerifications) {
+            // Create the journal entry
+            const [entry] = await tx
+              .insert(journalEntries)
+              .values({
+                workspaceId: ctx.workspaceId,
+                fiscalPeriodId: input.fiscalPeriodId,
+                verificationNumber: nextNumber++,
+                entryDate: verification.date,
+                description: verification.description || "Importerad från SIE",
+                entryType: "annat",
+                sourceType: "sie_import",
+                createdBy: ctx.session.user.id,
+              })
+              .returning();
+
+            // Create the entry lines
+            await tx.insert(journalEntryLines).values(
+              verification.lines.map((line, index) => ({
+                journalEntryId: entry.id,
+                accountNumber: line.accountNumber,
+                accountName: line.accountName,
+                debit: line.debit > 0 ? line.debit.toString() : null,
+                credit: line.credit > 0 ? line.credit.toString() : null,
+                description: line.description || null,
+                sortOrder: index,
+              }))
+            );
+
+            ids.push(entry.id);
+          }
+
+          return ids;
+        });
+
+        // Update batch record with success
+        await ctx.db
+          .update(sieImportBatches)
+          .set({
+            status: "completed",
+            importedVerifications: importedIds.length,
+          })
+          .where(eq(sieImportBatches.id, importBatch.id));
+      } catch (error) {
+        importError = error instanceof Error ? error.message : "Okänt fel";
+        // Update batch record with error
+        await ctx.db
+          .update(sieImportBatches)
+          .set({
+            status: "failed",
+            errorMessage: importError,
+          })
+          .where(eq(sieImportBatches.id, importBatch.id));
+
+        throw error;
+      }
 
       // Log the import (outside transaction for better performance)
       await ctx.db.insert(auditLogs).values({
@@ -755,6 +847,7 @@ export const journalEntriesRouter = router({
           importedCount: importedIds.length,
           skippedDuplicates: duplicateCount,
           importedIds,
+          importBatchId: importBatch.id,
         },
       });
 
@@ -762,7 +855,73 @@ export const journalEntriesRouter = router({
         imported: importedIds.length,
         skipped: duplicateCount,
         message: `${importedIds.length} verifikationer importerade${duplicateCount > 0 ? `, ${duplicateCount} dubbletter hoppades över` : ""}`,
+        importBatchId: importBatch.id,
       };
+    }),
+
+  // List all SIE imports for a workspace
+  listSIEImports: workspaceProcedure.query(async ({ ctx }) => {
+    const imports = await ctx.db.query.sieImportBatches.findMany({
+      where: eq(sieImportBatches.workspaceId, ctx.workspaceId),
+      orderBy: [desc(sieImportBatches.importedAt)],
+      with: {
+        fiscalPeriod: {
+          columns: {
+            id: true,
+            label: true,
+            startDate: true,
+            endDate: true,
+          },
+        },
+        createdByUser: {
+          columns: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    return imports;
+  }),
+
+  // Get a specific SIE import with details
+  getSIEImport: workspaceProcedure
+    .input(z.object({ importBatchId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const importBatch = await ctx.db.query.sieImportBatches.findFirst({
+        where: and(
+          eq(sieImportBatches.id, input.importBatchId),
+          eq(sieImportBatches.workspaceId, ctx.workspaceId)
+        ),
+        with: {
+          fiscalPeriod: {
+            columns: {
+              id: true,
+              label: true,
+              startDate: true,
+              endDate: true,
+            },
+          },
+          createdByUser: {
+            columns: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      if (!importBatch) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Importen hittades inte",
+        });
+      }
+
+      return importBatch;
     }),
 
   // Get smart template suggestions based on user's usage patterns

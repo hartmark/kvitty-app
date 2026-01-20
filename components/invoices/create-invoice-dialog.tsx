@@ -25,11 +25,19 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { trpc } from "@/lib/trpc/client";
 import { useWorkspace } from "@/components/workspace-provider";
 import { CreateCustomerInlineDialog } from "@/components/invoices/create-customer-inline-dialog";
 import { cn } from "@/lib/utils";
+import { currencies, currencyLabels, type Currency } from "@/lib/validations/currency";
 
 interface CreateInvoiceDialogProps {
   workspaceId: string;
@@ -56,6 +64,7 @@ export function CreateInvoiceDialog({
     return date.toISOString().split("T")[0];
   });
   const [reference, setReference] = useState("");
+  const [currency, setCurrency] = useState<Currency>(workspace.defaultCurrency as Currency || "SEK");
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [comboboxOpen, setComboboxOpen] = useState(false);
 
@@ -94,6 +103,7 @@ export function CreateInvoiceDialog({
     date.setDate(date.getDate() + 30);
     setDueDate(date.toISOString().split("T")[0]);
     setReference("");
+    setCurrency(workspace.defaultCurrency as Currency || "SEK");
   };
 
   useEffect(() => {
@@ -123,6 +133,7 @@ export function CreateInvoiceDialog({
       invoiceDate,
       dueDate,
       reference: reference || undefined,
+      currency,
     });
   };
 
@@ -232,15 +243,32 @@ export function CreateInvoiceDialog({
                 </Field>
               </div>
 
-              <Field>
-                <FieldLabel htmlFor="reference">Referens (valfritt)</FieldLabel>
-                <Input
-                  id="reference"
-                  value={reference}
-                  onChange={(e) => setReference(e.target.value)}
-                  placeholder="Er referens"
-                />
-              </Field>
+              <div className="grid grid-cols-2 gap-4">
+                <Field>
+                  <FieldLabel htmlFor="reference">Referens (valfritt)</FieldLabel>
+                  <Input
+                    id="reference"
+                    value={reference}
+                    onChange={(e) => setReference(e.target.value)}
+                    placeholder="Er referens"
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="currency">Valuta</FieldLabel>
+                  <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
+                    <SelectTrigger id="currency">
+                      <SelectValue placeholder="Välj valuta" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencies.map((curr) => (
+                        <SelectItem key={curr} value={curr}>
+                          {currencyLabels[curr]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
 
               {createInvoice.error && (
                 <p className="text-sm text-red-500">{createInvoice.error.message}</p>

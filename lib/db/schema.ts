@@ -148,6 +148,16 @@ export const rotRutTypeEnum = pgEnum("rot_rut_type", [
   "rot",  // Renovation, Ombyggnad, Tillbyggnad
   "rut",  // Hushållsnära tjänster
 ]);
+
+// Supported currencies for invoices
+export const currencyEnum = pgEnum("currency", [
+  "SEK",
+  "EUR",
+  "USD",
+  "GBP",
+  "NOK",
+  "DKK",
+]);
 import { relations } from "drizzle-orm";
 
 // ============================================
@@ -247,6 +257,7 @@ export const workspaces = pgTable("workspaces", {
   bic: text("bic"), // e.g., "ESSESESS"
   swishNumber: text("swish_number"), // For Swish payments
   paymentTermsDays: integer("payment_terms_days").default(30),
+  defaultCurrency: currencyEnum("default_currency").default("SEK").notNull(),
   invoiceNotes: text("invoice_notes"), // Default footer text for invoices
   // Invoice advanced settings defaults
   deliveryTerms: text("delivery_terms"), // Default delivery terms (e.g., "Fritt vårt lager")
@@ -534,6 +545,29 @@ export const bankImportBatches = pgTable("bank_import_batches", {
   totalTransactions: integer("total_transactions").default(0),
   importedTransactions: integer("imported_transactions").default(0),
   duplicateTransactions: integer("duplicate_transactions").default(0),
+  errorMessage: text("error_message"),
+  importedAt: timestamp("imported_at").defaultNow().notNull(),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+});
+
+// SIE import batches for tracking SIE import history
+export const sieImportBatches = pgTable("sie_import_batches", {
+  id: text("id").primaryKey().$defaultFn(() => createCuid()),
+  workspaceId: text("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  fiscalPeriodId: text("fiscal_period_id")
+    .notNull()
+    .references(() => fiscalPeriods.id, { onDelete: "cascade" }),
+  fileName: text("file_name").notNull(),
+  fileFormat: text("file_format").notNull(), // 'sie4', 'sie5'
+  fileUrl: text("file_url"), // Storage URL/key for the uploaded file
+  status: bankImportBatchStatusEnum("status").default("pending").notNull(),
+  totalVerifications: integer("total_verifications").default(0),
+  importedVerifications: integer("imported_verifications").default(0),
+  duplicateVerifications: integer("duplicate_verifications").default(0),
   errorMessage: text("error_message"),
   importedAt: timestamp("imported_at").defaultNow().notNull(),
   createdBy: text("created_by")
@@ -860,6 +894,7 @@ export const invoices = pgTable("invoices", {
   subtotal: decimal("subtotal", { precision: 15, scale: 2 }).notNull(),
   vatAmount: decimal("vat_amount", { precision: 15, scale: 2 }).notNull(),
   total: decimal("total", { precision: 15, scale: 2 }).notNull(),
+  currency: currencyEnum("currency").default("SEK").notNull(),
   status: invoiceStatusEnum("status").default("draft").notNull(),
   sentAt: timestamp("sent_at"), // When invoice was marked as sent
   sentMethod: invoiceSentMethodEnum("sent_method"), // How invoice was sent
@@ -1197,6 +1232,24 @@ export const bankImportBatchesRelations = relations(
       references: [user.id],
     }),
     transactions: many(bankTransactions),
+  })
+);
+
+export const sieImportBatchesRelations = relations(
+  sieImportBatches,
+  ({ one }) => ({
+    workspace: one(workspaces, {
+      fields: [sieImportBatches.workspaceId],
+      references: [workspaces.id],
+    }),
+    fiscalPeriod: one(fiscalPeriods, {
+      fields: [sieImportBatches.fiscalPeriodId],
+      references: [fiscalPeriods.id],
+    }),
+    createdByUser: one(user, {
+      fields: [sieImportBatches.createdBy],
+      references: [user.id],
+    }),
   })
 );
 
@@ -1639,6 +1692,7 @@ export type Invoice = typeof invoices.$inferSelect;
 export type NewInvoice = typeof invoices.$inferInsert;
 export type InvoiceStatus = (typeof invoiceStatusEnum.enumValues)[number];
 export type RotRutType = (typeof rotRutTypeEnum.enumValues)[number];
+export type Currency = (typeof currencyEnum.enumValues)[number];
 
 export type InvoiceLine = typeof invoiceLines.$inferSelect;
 export type NewInvoiceLine = typeof invoiceLines.$inferInsert;
@@ -1651,6 +1705,9 @@ export type BankTransactionStatus = (typeof bankTransactionStatusEnum.enumValues
 export type BankImportBatch = typeof bankImportBatches.$inferSelect;
 export type NewBankImportBatch = typeof bankImportBatches.$inferInsert;
 export type BankImportBatchStatus = (typeof bankImportBatchStatusEnum.enumValues)[number];
+
+export type SIEImportBatch = typeof sieImportBatches.$inferSelect;
+export type NewSIEImportBatch = typeof sieImportBatches.$inferInsert;
 
 export type SalaryStatement = typeof salaryStatements.$inferSelect;
 export type NewSalaryStatement = typeof salaryStatements.$inferInsert;

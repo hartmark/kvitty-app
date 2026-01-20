@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useQueryState, parseAsString, parseAsInteger } from "nuqs";
 import { useDebounce } from "@/hooks/use-debounce";
 import Link from "next/link";
-import { Plus, CaretRight, CalendarBlank, MagnifyingGlass, X, Upload } from "@phosphor-icons/react";
+import { Plus, CaretRight, CalendarBlank, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,7 +31,6 @@ import { trpc } from "@/lib/trpc/client";
 import { useWorkspace } from "@/components/workspace-provider";
 import { AddJournalEntryDialog } from "@/components/journal-entry/add-journal-entry-dialog";
 import { VerificationDetailSheet } from "@/components/bookkeeping/verification-detail-sheet";
-import { SIEImportDialog } from "@/components/bookkeeping/sie-import-dialog";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { formatCurrency } from "@/lib/utils";
 
@@ -77,7 +76,6 @@ export function BookkeepingPageClient({
   const [dateFrom, setDateFrom] = useQueryState("dateFrom", parseAsString.withDefault(""));
   const [dateTo, setDateTo] = useQueryState("dateTo", parseAsString.withDefault(""));
   const [addEntryOpen, setAddEntryOpen] = useState(false);
-  const [sieImportOpen, setSieImportOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
 
   // Get current period - default to most recent if not specified
@@ -211,11 +209,6 @@ export function BookkeepingPageClient({
                 ))}
               </SelectContent>
             </Select>
-
-            <Button variant="outline" onClick={() => setSieImportOpen(true)}>
-              <Upload className="size-4 mr-2" />
-              Importera SIE
-            </Button>
 
             <Button onClick={() => setAddEntryOpen(true)}>
               <Plus className="size-4 mr-2" />
@@ -393,16 +386,6 @@ export function BookkeepingPageClient({
         workspaceId={workspace.id}
         open={!!selectedEntry}
         onOpenChange={(open) => !open && setSelectedEntry(null)}
-      />
-
-      {/* SIE import dialog */}
-      <SIEImportDialog
-        workspaceId={workspace.id}
-        workspaceSlug={workspaceSlug}
-        periods={periods}
-        open={sieImportOpen}
-        onOpenChange={setSieImportOpen}
-        defaultPeriodId={currentPeriodId}
       />
     </>
   );

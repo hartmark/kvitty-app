@@ -26,7 +26,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { TablePagination } from "@/components/ui/table-pagination";
-import type { InvoiceStatus } from "@/lib/db/schema";
+import type { InvoiceStatus, Currency } from "@/lib/db/schema";
+import { formatCurrency } from "@/lib/utils";
 
 interface Invoice {
   id: string;
@@ -40,6 +41,7 @@ interface Invoice {
   total: string;
   paidAmount: string | null;
   status: InvoiceStatus;
+  currency: Currency;
   sentJournalEntryId: string | null;
   journalEntryId: string | null;
 }
@@ -182,12 +184,6 @@ export function InvoicesTable({
   onPageSizeChange,
   isLoading,
 }: InvoicesTableProps) {
-  const formatCurrency = (value: string) => {
-    return parseFloat(value).toLocaleString("sv-SE", {
-      minimumFractionDigits: 2,
-    }) + " kr";
-  };
-
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("sv-SE");
   };
@@ -258,7 +254,7 @@ export function InvoicesTable({
                   </Link>
                 </TableCell>
                 <TableCell className="px-4 text-right font-mono">
-                  {formatCurrency(invoice.total)}
+                  {formatCurrency(parseFloat(invoice.total), invoice.currency)}
                 </TableCell>
                 <TableCell className="px-4">
                   <Badge variant={statusColors[displayStatus]}>

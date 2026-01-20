@@ -9,7 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { trpc } from "@/lib/trpc/client";
 import { unitLabels } from "@/lib/validations/product";
 import { EditLineDialog } from "@/components/invoices/edit-line-dialog";
-import type { InvoiceLine, Product } from "@/lib/db/schema";
+import type { InvoiceLine, Product, Currency } from "@/lib/db/schema";
+import { formatAmount } from "@/lib/utils";
 
 interface InvoiceLineWithProduct extends InvoiceLine {
   product: Product | null;
@@ -21,17 +22,10 @@ interface InvoiceLineRowProps {
   invoiceId: string;
   isDraft: boolean;
   rotRutType?: "rot" | "rut" | null;
+  currency?: Currency;
 }
 
-function formatCurrency(value: string | number) {
-  const num = typeof value === "string" ? parseFloat(value) : value;
-  return num.toLocaleString("sv-SE", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-export function InvoiceLineRow({ line, workspaceId, invoiceId, isDraft, rotRutType }: InvoiceLineRowProps) {
+export function InvoiceLineRow({ line, workspaceId, invoiceId, isDraft, rotRutType, currency = "SEK" }: InvoiceLineRowProps) {
   const utils = trpc.useUtils();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
@@ -135,7 +129,7 @@ export function InvoiceLineRow({ line, workspaceId, invoiceId, isDraft, rotRutTy
       {isTextLine ? (
         <span className="text-right"></span>
       ) : (
-        <span className="text-right">{formatCurrency(line.unitPrice)}</span>
+        <span className="text-right">{formatAmount(parseFloat(line.unitPrice), currency)}</span>
       )}
 
       {/* VAT Rate */}
@@ -147,7 +141,7 @@ export function InvoiceLineRow({ line, workspaceId, invoiceId, isDraft, rotRutTy
 
       {/* Amount */}
       <span className="text-right font-medium">
-        {isTextLine ? "" : formatCurrency(lineAmount)}
+        {isTextLine ? "" : formatAmount(lineAmount, currency)}
       </span>
 
       {/* ROT/RUT Checkboxes */}

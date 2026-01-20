@@ -28,6 +28,9 @@ export const importSIESchema = z.object({
     .array(sieVerificationSchema)
     .min(1, "Måste välja minst en verifikation att importera"),
   sourceFileName: z.string().optional(),
+  fileContent: z.string().optional(), // Base64 encoded file content for new uploads
+  fileUrl: z.string().optional(), // Storage URL for previously uploaded files
+  fileFormat: z.enum(["sie4", "sie5"]).optional(), // Format detected from preview
 });
 
 export type SIEVerificationLine = z.infer<typeof sieVerificationLineSchema>;

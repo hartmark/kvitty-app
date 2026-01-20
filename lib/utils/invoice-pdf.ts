@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
-import type { Invoice, InvoiceLine, Customer } from "@/lib/db/schema";
+import type { Invoice, InvoiceLine, Customer, Currency } from "@/lib/db/schema";
 import { unitLabels } from "@/lib/validations/product";
+import { currencySymbols, currencyLocales } from "@/lib/validations/currency";
 
 // Partial workspace type for PDF generation - only includes fields actually used
 interface WorkspaceForPdf {
@@ -40,6 +41,8 @@ interface InvoicePdfData {
 export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
   const { workspace, invoice, customer, lines, qrCodeDataUrl } = data;
   const doc = new jsPDF();
+  const currency = invoice.currency as Currency;
+  const currencySymbol = currencySymbols[currency];
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 20;
@@ -188,10 +191,10 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
       const unitLabel = line.unit ? (unitLabels[line.unit] || line.unit) : "-";
       doc.text(unitLabel, rowX, y);
       rowX += colWidths.unit;
-      doc.text(formatCurrency(parseFloat(line.unitPrice)), rowX, y);
+      doc.text(formatCurrency(parseFloat(line.unitPrice), currency), rowX, y);
       rowX += colWidths.price;
       doc.text(`${line.vatRate}%`, rowX, y);
-      doc.text(formatCurrency(parseFloat(line.amount)), pageWidth - margin - 2, y, { align: "right" });
+      doc.text(formatCurrency(parseFloat(line.amount), currency), pageWidth - margin - 2, y, { align: "right" });
     }
 
     y += 6;
@@ -203,17 +206,17 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
 
   doc.setFont("helvetica", "normal");
   doc.text("Summa exkl. moms:", totalsX, y);
-  doc.text(formatCurrency(parseFloat(invoice.subtotal)), pageWidth - margin - 2, y, { align: "right" });
+  doc.text(formatCurrency(parseFloat(invoice.subtotal), currency), pageWidth - margin - 2, y, { align: "right" });
 
   y += 6;
   doc.text("Moms:", totalsX, y);
-  doc.text(formatCurrency(parseFloat(invoice.vatAmount)), pageWidth - margin - 2, y, { align: "right" });
+  doc.text(formatCurrency(parseFloat(invoice.vatAmount), currency), pageWidth - margin - 2, y, { align: "right" });
 
   y += 8;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.text("Att betala:", totalsX, y);
-  doc.text(formatCurrency(parseFloat(invoice.total)) + " kr", pageWidth - margin - 2, y, { align: "right" });
+  doc.text(formatCurrency(parseFloat(invoice.total), currency) + " " + currencySymbol, pageWidth - margin - 2, y, { align: "right" });
 
   // Payment info section
   y += 15;
@@ -310,9 +313,9 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
     const deductionAmount = invoice.rotRutDeductionAmount ? parseFloat(invoice.rotRutDeductionAmount) : 0;
     const rate = invoice.rotRutType === "rot" ? "30%" : "50%";
 
-    doc.text(`Arbetskostnad före skattereduktion: ${formatCurrency(laborAmount)} kr`, margin + 5, y + 9);
-    doc.text(`Material och resekostnader: ${formatCurrency(materialAmount)} kr`, margin + 5, y + 15);
-    doc.text(`Skattereduktion (${rate}): -${formatCurrency(deductionAmount)} kr`, margin + 5, y + 21);
+    doc.text(`Arbetskostnad före skattereduktion: ${formatCurrency(laborAmount, currency)} ${currencySymbol}`, margin + 5, y + 9);
+    doc.text(`Material och resekostnader: ${formatCurrency(materialAmount, currency)} ${currencySymbol}`, margin + 5, y + 15);
+    doc.text(`Skattereduktion (${rate}): -${formatCurrency(deductionAmount, currency)} ${currencySymbol}`, margin + 5, y + 21);
 
     // Show customer ROT/RUT info on the right
     const rotRutRightX = pageWidth - margin - 5;
@@ -432,8 +435,8 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString("sv-SE");
 }
 
-function formatCurrency(value: number): string {
-  return value.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function formatCurrency(value: number, currency: Currency = "SEK"): string {
+  return value.toLocaleString(currencyLocales[currency], { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatNumber(value: number): string {

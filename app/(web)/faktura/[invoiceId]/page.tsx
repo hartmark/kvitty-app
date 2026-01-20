@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import { appRouter } from "@/lib/trpc/router";
 import { createTRPCContext } from "@/lib/trpc/init";
 import { DownloadInvoiceButton } from "./download-button";
+import { formatCurrency, formatAmount } from "@/lib/utils";
+import type { Currency } from "@/lib/db/schema";
 
 interface PublicInvoicePageProps {
   params: Promise<{ invoiceId: string }>;
@@ -148,6 +150,7 @@ export default async function PublicInvoicePage({
                 <tbody>
                   {invoice.lines.map((line) => {
                     const isTextLine = line.lineType === "text";
+                    const currency = invoice.currency as Currency;
                     return (
                       <tr key={line.id} className="border-b">
                         <td className="py-3 px-3">{line.description}</td>
@@ -157,10 +160,7 @@ export default async function PublicInvoicePage({
                         <td className="text-right py-3 px-3">
                           {isTextLine
                             ? "-"
-                            : parseFloat(line.unitPrice).toLocaleString("sv-SE", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              }) + " kr"}
+                            : formatCurrency(parseFloat(line.unitPrice), currency)}
                         </td>
                         <td className="text-right py-3 px-3">
                           {isTextLine ? "-" : `${line.vatRate}%`}
@@ -168,10 +168,7 @@ export default async function PublicInvoicePage({
                         <td className="text-right py-3 px-3 font-medium">
                           {isTextLine
                             ? "-"
-                            : parseFloat(line.amount).toLocaleString("sv-SE", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              }) + " kr"}
+                            : formatCurrency(parseFloat(line.amount), currency)}
                         </td>
                       </tr>
                     );
@@ -187,31 +184,19 @@ export default async function PublicInvoicePage({
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Summa exkl. moms:</span>
                   <span>
-                    {parseFloat(invoice.subtotal).toLocaleString("sv-SE", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}{" "}
-                    kr
+                    {formatCurrency(parseFloat(invoice.subtotal), invoice.currency as Currency)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Moms:</span>
                   <span>
-                    {parseFloat(invoice.vatAmount).toLocaleString("sv-SE", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}{" "}
-                    kr
+                    {formatCurrency(parseFloat(invoice.vatAmount), invoice.currency as Currency)}
                   </span>
                 </div>
                 <div className="flex justify-between border-t pt-2 font-bold text-lg">
                   <span>Att betala:</span>
                   <span>
-                    {parseFloat(invoice.total).toLocaleString("sv-SE", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}{" "}
-                    kr
+                    {formatCurrency(parseFloat(invoice.total), invoice.currency as Currency)}
                   </span>
                 </div>
               </div>

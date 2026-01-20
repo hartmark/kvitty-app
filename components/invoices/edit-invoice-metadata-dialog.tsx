@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc/client";
 import type { Invoice, Customer } from "@/lib/db/schema";
+import { currencies, currencyLabels, type Currency } from "@/lib/validations/currency";
 
 interface InvoiceWithCustomer extends Invoice {
   customer: Customer;
@@ -42,6 +43,7 @@ export function EditInvoiceMetadataDialog({
   const [invoiceDate, setInvoiceDate] = useState(invoice.invoiceDate);
   const [dueDate, setDueDate] = useState(invoice.dueDate);
   const [reference, setReference] = useState(invoice.reference || "");
+  const [currency, setCurrency] = useState<Currency>(invoice.currency as Currency);
 
   const { data: customersData } = trpc.customers.list.useQuery({
     workspaceId: invoice.workspaceId,
@@ -61,6 +63,7 @@ export function EditInvoiceMetadataDialog({
       setInvoiceDate(invoice.invoiceDate);
       setDueDate(invoice.dueDate);
       setReference(invoice.reference || "");
+      setCurrency(invoice.currency as Currency);
     }
   }, [open, invoice]);
 
@@ -72,6 +75,7 @@ export function EditInvoiceMetadataDialog({
       invoiceDate,
       dueDate,
       reference: reference || null,
+      currency,
     });
   };
 
@@ -80,6 +84,7 @@ export function EditInvoiceMetadataDialog({
     setInvoiceDate(invoice.invoiceDate);
     setDueDate(invoice.dueDate);
     setReference(invoice.reference || "");
+    setCurrency(invoice.currency as Currency);
     onOpenChange(false);
   };
 
@@ -127,16 +132,33 @@ export function EditInvoiceMetadataDialog({
               />
             </Field>
           </div>
-          <Field>
-            <FieldLabel htmlFor="reference">Referens</FieldLabel>
-            <Input
-              id="reference"
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              placeholder="Valfri referens"
-              disabled={updateMetadata.isPending}
-            />
-          </Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field>
+              <FieldLabel htmlFor="reference">Referens</FieldLabel>
+              <Input
+                id="reference"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder="Valfri referens"
+                disabled={updateMetadata.isPending}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="currency">Valuta</FieldLabel>
+              <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)} disabled={updateMetadata.isPending}>
+                <SelectTrigger id="currency">
+                  <SelectValue placeholder="Välj valuta" />
+                </SelectTrigger>
+                <SelectContent>
+                  {currencies.map((curr) => (
+                    <SelectItem key={curr} value={curr}>
+                      {currencyLabels[curr]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
         </FieldGroup>
         <DialogFooter>
           <Button
