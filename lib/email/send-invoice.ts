@@ -1,6 +1,7 @@
 import { mailer } from "./mailer";
-import type { Invoice, Customer, Workspace } from "@/lib/db/schema";
+import type { Invoice, Customer, Workspace, InvoiceLanguage } from "@/lib/db/schema";
 import { generateInvoicePdf } from "@/lib/utils/invoice-pdf";
+import { getTranslations, getLocaleForLanguage, formatTemplate } from "@/lib/translations/invoice";
 
 interface SendInvoiceEmailParams {
   to: string;
@@ -15,6 +16,8 @@ interface SendInvoiceEmailParams {
     amount: string;
   }>;
   invoiceUrl?: string;
+  /** Invoice language for customer-facing content (defaults to invoice.language or "sv") */
+  language?: InvoiceLanguage;
 }
 
 export async function sendInvoiceEmailWithPdf({
@@ -23,7 +26,14 @@ export async function sendInvoiceEmailWithPdf({
   customer,
   workspace,
   invoiceLines,
+  language,
 }: SendInvoiceEmailParams): Promise<void> {
+  // Get language from parameter, invoice, or default to "sv"
+  const lang = language || (invoice.language as InvoiceLanguage) || "sv";
+  const t = getTranslations(lang);
+  const locale = getLocaleForLanguage(lang);
+  const companyName = workspace.orgName || workspace.name;
+
   const pdfDoc = generateInvoicePdf({
     workspace,
     invoice,
@@ -45,26 +55,35 @@ export async function sendInvoiceEmailWithPdf({
       isLabor: null,
       isMaterial: null,
     })),
+    language: lang,
   });
 
   const pdfBuffer = Buffer.from(pdfDoc.output("arraybuffer") as ArrayBuffer);
   const pdfBase64 = pdfBuffer.toString("base64");
 
-  const subject = `Faktura #${invoice.invoiceNumber} från ${workspace.orgName || workspace.name}`;
+  const subject = formatTemplate(t.emailSubject, {
+    invoiceNumber: invoice.invoiceNumber,
+    company: companyName,
+  });
+
+  const greeting = formatTemplate(t.emailGreeting, { customerName: customer.name });
+  const body = formatTemplate(t.emailBody, { invoiceNumber: invoice.invoiceNumber });
+  const formattedTotal = parseFloat(invoice.total).toLocaleString(locale, { minimumFractionDigits: 2 });
+  const currencyLabel = invoice.currency || "SEK";
 
   const textContent = `
-Hej ${customer.name}!
+${greeting}
 
-Vi skickar härmed faktura #${invoice.invoiceNumber}.
+${body}
 
-Fakturadatum: ${invoice.invoiceDate}
-Förfallodatum: ${invoice.dueDate}
-Totalt att betala: ${parseFloat(invoice.total).toLocaleString("sv-SE")} kr
+${t.invoiceDate}: ${invoice.invoiceDate}
+${t.dueDate}: ${invoice.dueDate}
+${t.totalToPay}: ${formattedTotal} ${currencyLabel}
 
-Se bifogad PDF för detaljer.
+${t.emailSeeAttachedPdf}
 
-Med vänliga hälsningar,
-${workspace.orgName || workspace.name}
+${t.emailBestRegards}
+${companyName}
   `.trim();
 
   const htmlContent = `
@@ -75,31 +94,31 @@ ${workspace.orgName || workspace.name}
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
-  <h2 style="color: #1a1a1a;">Faktura #${invoice.invoiceNumber}</h2>
+  <h2 style="color: #1a1a1a;">${t.invoice} #${invoice.invoiceNumber}</h2>
   <p style="color: #4a4a4a; line-height: 1.6;">
-    Hej <strong>${customer.name}</strong>!
+    ${greeting.replace(customer.name, `<strong>${customer.name}</strong>`)}
   </p>
   <p style="color: #4a4a4a; line-height: 1.6;">
-    Vi skickar härmed faktura #${invoice.invoiceNumber}.
+    ${body}
   </p>
   <div style="background-color: #f9fafb; padding: 16px; border-radius: 8px; margin: 24px 0;">
     <p style="margin: 8px 0; color: #4a4a4a;">
-      <strong>Fakturadatum:</strong> ${invoice.invoiceDate}
+      <strong>${t.invoiceDate}:</strong> ${invoice.invoiceDate}
     </p>
     <p style="margin: 8px 0; color: #4a4a4a;">
-      <strong>Förfallodatum:</strong> ${invoice.dueDate}
+      <strong>${t.dueDate}:</strong> ${invoice.dueDate}
     </p>
     <p style="margin: 8px 0; color: #4a4a4a;">
-      <strong>Totalt att betala:</strong> ${parseFloat(invoice.total).toLocaleString("sv-SE")} kr
+      <strong>${t.totalToPay}:</strong> ${formattedTotal} ${currencyLabel}
     </p>
   </div>
   <p style="color: #6b7280; font-size: 14px;">
-    Se bifogad PDF för detaljer.
+    ${t.emailSeeAttachedPdf}
   </p>
   <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
   <p style="color: #9ca3af; font-size: 12px;">
-    Med vänliga hälsningar,<br>
-    ${workspace.orgName || workspace.name}
+    ${t.emailBestRegards}<br>
+    ${companyName}
   </p>
 </body>
 </html>
@@ -126,28 +145,42 @@ export async function sendInvoiceEmailWithLink({
   invoice,
   customer,
   workspace,
-  invoiceLines,
   invoiceUrl,
+  language,
 }: SendInvoiceEmailParams): Promise<void> {
   if (!invoiceUrl) {
     throw new Error("Invoice URL is required for link method");
   }
 
-  const subject = `Faktura #${invoice.invoiceNumber} från ${workspace.orgName || workspace.name}`;
+  // Get language from parameter, invoice, or default to "sv"
+  const lang = language || (invoice.language as InvoiceLanguage) || "sv";
+  const t = getTranslations(lang);
+  const locale = getLocaleForLanguage(lang);
+  const companyName = workspace.orgName || workspace.name;
+
+  const subject = formatTemplate(t.emailSubject, {
+    invoiceNumber: invoice.invoiceNumber,
+    company: companyName,
+  });
+
+  const greeting = formatTemplate(t.emailGreeting, { customerName: customer.name });
+  const body = formatTemplate(t.emailBody, { invoiceNumber: invoice.invoiceNumber });
+  const formattedTotal = parseFloat(invoice.total).toLocaleString(locale, { minimumFractionDigits: 2 });
+  const currencyLabel = invoice.currency || "SEK";
 
   const textContent = `
-Hej ${customer.name}!
+${greeting}
 
-Vi skickar härmed faktura #${invoice.invoiceNumber}.
+${body}
 
-Fakturadatum: ${invoice.invoiceDate}
-Förfallodatum: ${invoice.dueDate}
-Totalt att betala: ${parseFloat(invoice.total).toLocaleString("sv-SE")} kr
+${t.invoiceDate}: ${invoice.invoiceDate}
+${t.dueDate}: ${invoice.dueDate}
+${t.totalToPay}: ${formattedTotal} ${currencyLabel}
 
-Visa faktura: ${invoiceUrl}
+${t.emailViewInvoice}: ${invoiceUrl}
 
-Med vänliga hälsningar,
-${workspace.orgName || workspace.name}
+${t.emailBestRegards}
+${companyName}
   `.trim();
 
   const htmlContent = `
@@ -158,22 +191,22 @@ ${workspace.orgName || workspace.name}
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
-  <h2 style="color: #1a1a1a;">Faktura #${invoice.invoiceNumber}</h2>
+  <h2 style="color: #1a1a1a;">${t.invoice} #${invoice.invoiceNumber}</h2>
   <p style="color: #4a4a4a; line-height: 1.6;">
-    Hej <strong>${customer.name}</strong>!
+    ${greeting.replace(customer.name, `<strong>${customer.name}</strong>`)}
   </p>
   <p style="color: #4a4a4a; line-height: 1.6;">
-    Vi skickar härmed faktura #${invoice.invoiceNumber}.
+    ${body}
   </p>
   <div style="background-color: #f9fafb; padding: 16px; border-radius: 8px; margin: 24px 0;">
     <p style="margin: 8px 0; color: #4a4a4a;">
-      <strong>Fakturadatum:</strong> ${invoice.invoiceDate}
+      <strong>${t.invoiceDate}:</strong> ${invoice.invoiceDate}
     </p>
     <p style="margin: 8px 0; color: #4a4a4a;">
-      <strong>Förfallodatum:</strong> ${invoice.dueDate}
+      <strong>${t.dueDate}:</strong> ${invoice.dueDate}
     </p>
     <p style="margin: 8px 0; color: #4a4a4a;">
-      <strong>Totalt att betala:</strong> ${parseFloat(invoice.total).toLocaleString("sv-SE")} kr
+      <strong>${t.totalToPay}:</strong> ${formattedTotal} ${currencyLabel}
     </p>
   </div>
   <p style="margin: 24px 0;">
@@ -181,13 +214,13 @@ ${workspace.orgName || workspace.name}
        style="display: inline-block; background-color: #0f172a; color: #ffffff;
               padding: 12px 24px; text-decoration: none; border-radius: 6px;
               font-weight: 500;">
-      Visa faktura
+      ${t.emailViewInvoice}
     </a>
   </p>
   <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
   <p style="color: #9ca3af; font-size: 12px;">
-    Med vänliga hälsningar,<br>
-    ${workspace.orgName || workspace.name}
+    ${t.emailBestRegards}<br>
+    ${companyName}
   </p>
 </body>
 </html>

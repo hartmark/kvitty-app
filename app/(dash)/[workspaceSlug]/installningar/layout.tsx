@@ -1,19 +1,16 @@
-import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { workspaces, workspaceMembers } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getSession } from "@/lib/session";
 import { PageHeader } from "@/components/layout/page-header";
-import { RulesList } from "@/components/categorization-rules/rules-list";
+import { SettingsSidebarNav } from "@/components/settings/settings-sidebar-nav";
 
-export const metadata: Metadata = {
-  title: "Kategoriseringsregler — Kvitty",
-};
-
-export default async function CategorizationRulesPage({
+export default async function SettingsLayout({
+  children,
   params,
 }: {
+  children: React.ReactNode;
   params: Promise<{ workspaceSlug: string }>;
 }) {
   const session = await getSession();
@@ -39,7 +36,7 @@ export default async function CategorizationRulesPage({
   });
 
   if (!membership) {
-    redirect("/app");
+    redirect("/dashboard");
   }
 
   return (
@@ -47,16 +44,13 @@ export default async function CategorizationRulesPage({
       <PageHeader
         workspaceSlug={workspaceSlug}
         workspaceName={workspace.name}
-        currentPage="Kategoriseringsregler"
+        currentPage="Inställningar"
       />
-      <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        <div>
-          <h1 className="text-2xl font-semibold">Kategoriseringsregler</h1>
-          <p className="text-muted-foreground">
-            Skapa regler for att automatiskt kategorisera banktransaktioner
-          </p>
-        </div>
-        <RulesList workspaceId={workspace.id} />
+      <div className="flex flex-1 flex-col lg:flex-row gap-6 p-4 pt-0">
+        <aside className="lg:w-56 shrink-0">
+          <SettingsSidebarNav workspaceSlug={workspaceSlug} />
+        </aside>
+        <main className="flex-1 min-w-0">{children}</main>
       </div>
     </>
   );

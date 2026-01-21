@@ -299,6 +299,7 @@ export const invoicesRouter = router({
           vatAmount: "0.00",
           total: "0.00",
           currency: input.currency || workspace?.defaultCurrency || "SEK",
+          language: input.language || workspace?.defaultInvoiceLanguage || "sv",
           status: "draft",
           // Inherit workspace defaults
           deliveryTerms: workspace?.deliveryTerms || null,
@@ -434,6 +435,7 @@ export const invoicesRouter = router({
       if (input.dueDate !== undefined) updateData.dueDate = input.dueDate;
       if (input.reference !== undefined) updateData.reference = input.reference || null;
       if (input.currency !== undefined) updateData.currency = input.currency;
+      if (input.language !== undefined) updateData.language = input.language;
 
       const [updated] = await ctx.db
         .update(invoices)
@@ -2257,6 +2259,8 @@ export const invoicesRouter = router({
           subtotal: source.subtotal,
           vatAmount: source.vatAmount,
           total: source.total,
+          currency: source.currency,
+          language: source.language,
           status: "draft",
           // Copy settings from source
           deliveryTerms: source.deliveryTerms,

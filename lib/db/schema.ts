@@ -158,6 +158,9 @@ export const currencyEnum = pgEnum("currency", [
   "NOK",
   "DKK",
 ]);
+
+// Supported languages for customer-facing content (invoices, emails)
+export const invoiceLanguageEnum = pgEnum("invoice_language", ["sv", "en"]);
 import { relations } from "drizzle-orm";
 
 // ============================================
@@ -258,6 +261,7 @@ export const workspaces = pgTable("workspaces", {
   swishNumber: text("swish_number"), // For Swish payments
   paymentTermsDays: integer("payment_terms_days").default(30),
   defaultCurrency: currencyEnum("default_currency").default("SEK").notNull(),
+  defaultInvoiceLanguage: invoiceLanguageEnum("default_invoice_language").default("sv").notNull(),
   invoiceNotes: text("invoice_notes"), // Default footer text for invoices
   // Invoice advanced settings defaults
   deliveryTerms: text("delivery_terms"), // Default delivery terms (e.g., "Fritt vårt lager")
@@ -895,6 +899,7 @@ export const invoices = pgTable("invoices", {
   vatAmount: decimal("vat_amount", { precision: 15, scale: 2 }).notNull(),
   total: decimal("total", { precision: 15, scale: 2 }).notNull(),
   currency: currencyEnum("currency").default("SEK").notNull(),
+  language: invoiceLanguageEnum("language").default("sv").notNull(),
   status: invoiceStatusEnum("status").default("draft").notNull(),
   sentAt: timestamp("sent_at"), // When invoice was marked as sent
   sentMethod: invoiceSentMethodEnum("sent_method"), // How invoice was sent
@@ -1693,6 +1698,7 @@ export type NewInvoice = typeof invoices.$inferInsert;
 export type InvoiceStatus = (typeof invoiceStatusEnum.enumValues)[number];
 export type RotRutType = (typeof rotRutTypeEnum.enumValues)[number];
 export type Currency = (typeof currencyEnum.enumValues)[number];
+export type InvoiceLanguage = (typeof invoiceLanguageEnum.enumValues)[number];
 
 export type InvoiceLine = typeof invoiceLines.$inferSelect;
 export type NewInvoiceLine = typeof invoiceLines.$inferInsert;

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { invoiceLanguages } from "@/lib/translations/invoice";
 
 // Workspace mode enum values
 export const workspaceModes = ["simple", "full_bookkeeping"] as const;
@@ -77,6 +78,7 @@ export const updateWorkspaceSchema = z.object({
   deliveryTerms: z.string().max(200).optional().nullable(),
   latePaymentInterest: z.number().min(0).max(100).optional().nullable(),
   defaultPaymentMethod: z.string().max(50).optional().nullable(),
+  defaultInvoiceLanguage: z.enum(invoiceLanguages).optional().nullable(),
   addOcrNumber: z.boolean().optional().nullable(),
   // Utlägg settings (UI restricts to 2890 or 2893)
   defaultUtlaggAccount: z.number().int().optional().nullable(),

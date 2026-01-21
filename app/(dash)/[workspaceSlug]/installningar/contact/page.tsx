@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { workspaces } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { GeneralSettingsForm } from "@/components/settings/general-settings-form";
+import { ContactSettingsForm } from "@/components/settings/contact-settings-form";
 
 export const metadata: Metadata = {
-  title: "Inställningar — Kvitty",
+  title: "Kontaktinställningar — Kvitty",
 };
 
-export default async function SettingsPage({
+export default async function ContactSettingsPage({
   params,
 }: {
   params: Promise<{ workspaceSlug: string }>;
@@ -23,6 +23,5 @@ export default async function SettingsPage({
     return null;
   }
 
-  return <GeneralSettingsForm workspace={workspace} />;
+  return <ContactSettingsForm workspace={workspace} />;
 }
-

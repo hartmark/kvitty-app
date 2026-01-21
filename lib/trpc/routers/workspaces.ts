@@ -150,6 +150,7 @@ export const workspacesRouter = router({
             latePaymentInterest: input.latePaymentInterest?.toString() ?? null,
           }),
           ...(input.defaultPaymentMethod !== undefined && { defaultPaymentMethod: input.defaultPaymentMethod || null }),
+          ...(input.defaultInvoiceLanguage !== undefined && { defaultInvoiceLanguage: input.defaultInvoiceLanguage || "sv" }),
           ...(input.defaultUtlaggAccount !== undefined && { defaultUtlaggAccount: input.defaultUtlaggAccount }),
           ...(input.addOcrNumber !== undefined && { addOcrNumber: input.addOcrNumber }),
           ...(input.vatReportingFrequency !== undefined && { vatReportingFrequency: input.vatReportingFrequency || null }),

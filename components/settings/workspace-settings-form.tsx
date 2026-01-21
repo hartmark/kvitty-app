@@ -43,7 +43,8 @@ import {
   updateWorkspaceSchema,
 } from "@/lib/validations/workspace";
 import { z } from "zod";
-import type { Workspace } from "@/lib/db/schema";
+import type { Workspace, InvoiceLanguage } from "@/lib/db/schema";
+import { invoiceLanguages, invoiceLanguageLabels } from "@/lib/translations/invoice";
 
 interface WorkspaceSettingsFormProps {
   workspace: Workspace;
@@ -128,6 +129,7 @@ export function WorkspaceSettingsForm({
         ? Number(workspace.latePaymentInterest)
         : null,
       defaultPaymentMethod: workspace.defaultPaymentMethod ?? "",
+      defaultInvoiceLanguage: workspace.defaultInvoiceLanguage ?? "sv",
       addOcrNumber: workspace.addOcrNumber ?? false,
       defaultUtlaggAccount: workspace.defaultUtlaggAccount ?? 2893,
       vatReportingFrequency: workspace.vatReportingFrequency ?? "quarterly",
@@ -176,6 +178,7 @@ export function WorkspaceSettingsForm({
             ? Number(updated.latePaymentInterest)
             : null,
           defaultPaymentMethod: updated.defaultPaymentMethod ?? "",
+          defaultInvoiceLanguage: updated.defaultInvoiceLanguage ?? "sv",
           addOcrNumber: updated.addOcrNumber ?? false,
           defaultUtlaggAccount: updated.defaultUtlaggAccount ?? 2893,
           vatReportingFrequency: updated.vatReportingFrequency ?? "quarterly",
@@ -213,6 +216,7 @@ export function WorkspaceSettingsForm({
       deliveryTerms: data.deliveryTerms || null,
       latePaymentInterest: data.latePaymentInterest,
       defaultPaymentMethod: data.defaultPaymentMethod || null,
+      defaultInvoiceLanguage: data.defaultInvoiceLanguage || null,
       addOcrNumber: data.addOcrNumber,
       defaultUtlaggAccount: data.defaultUtlaggAccount,
       vatReportingFrequency: data.vatReportingFrequency || null,
@@ -639,6 +643,40 @@ export function WorkspaceSettingsForm({
                   )}
                 />
               </div>
+
+              <Controller
+                name="defaultInvoiceLanguage"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="defaultInvoiceLanguage">
+                      Standardspråk för fakturor
+                    </FieldLabel>
+                    <Select
+                      value={field.value ?? "sv"}
+                      onValueChange={(v) => field.onChange(v as InvoiceLanguage)}
+                      disabled={isSubmitting}
+                    >
+                      <SelectTrigger id="defaultInvoiceLanguage" className="w-full">
+                        <SelectValue placeholder="Välj språk" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {invoiceLanguages.map((lang) => (
+                          <SelectItem key={lang} value={lang}>
+                            {invoiceLanguageLabels[lang]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldDescription>
+                      Språk för nya fakturor, PDF och e-post. Kan ändras per faktura.
+                    </FieldDescription>
+                    {fieldState.error && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
             </FieldGroup>
           </CardContent>
         </Card>

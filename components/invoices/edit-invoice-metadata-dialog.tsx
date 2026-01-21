@@ -20,8 +20,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc/client";
-import type { Invoice, Customer } from "@/lib/db/schema";
+import type { Invoice, Customer, InvoiceLanguage } from "@/lib/db/schema";
 import { currencies, currencyLabels, type Currency } from "@/lib/validations/currency";
+import { invoiceLanguages, invoiceLanguageLabels } from "@/lib/translations/invoice";
 
 interface InvoiceWithCustomer extends Invoice {
   customer: Customer;
@@ -44,6 +45,7 @@ export function EditInvoiceMetadataDialog({
   const [dueDate, setDueDate] = useState(invoice.dueDate);
   const [reference, setReference] = useState(invoice.reference || "");
   const [currency, setCurrency] = useState<Currency>(invoice.currency as Currency);
+  const [language, setLanguage] = useState<InvoiceLanguage>(invoice.language as InvoiceLanguage);
 
   const { data: customersData } = trpc.customers.list.useQuery({
     workspaceId: invoice.workspaceId,
@@ -64,6 +66,7 @@ export function EditInvoiceMetadataDialog({
       setDueDate(invoice.dueDate);
       setReference(invoice.reference || "");
       setCurrency(invoice.currency as Currency);
+      setLanguage(invoice.language as InvoiceLanguage);
     }
   }, [open, invoice]);
 
@@ -76,6 +79,7 @@ export function EditInvoiceMetadataDialog({
       dueDate,
       reference: reference || null,
       currency,
+      language,
     });
   };
 
@@ -85,6 +89,7 @@ export function EditInvoiceMetadataDialog({
     setDueDate(invoice.dueDate);
     setReference(invoice.reference || "");
     setCurrency(invoice.currency as Currency);
+    setLanguage(invoice.language as InvoiceLanguage);
     onOpenChange(false);
   };
 
@@ -132,17 +137,17 @@ export function EditInvoiceMetadataDialog({
               />
             </Field>
           </div>
+          <Field>
+            <FieldLabel htmlFor="reference">Referens</FieldLabel>
+            <Input
+              id="reference"
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              placeholder="Valfri referens"
+              disabled={updateMetadata.isPending}
+            />
+          </Field>
           <div className="grid grid-cols-2 gap-4">
-            <Field>
-              <FieldLabel htmlFor="reference">Referens</FieldLabel>
-              <Input
-                id="reference"
-                value={reference}
-                onChange={(e) => setReference(e.target.value)}
-                placeholder="Valfri referens"
-                disabled={updateMetadata.isPending}
-              />
-            </Field>
             <Field>
               <FieldLabel htmlFor="currency">Valuta</FieldLabel>
               <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)} disabled={updateMetadata.isPending}>
@@ -153,6 +158,21 @@ export function EditInvoiceMetadataDialog({
                   {currencies.map((curr) => (
                     <SelectItem key={curr} value={curr}>
                       {currencyLabels[curr]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="language">Språk (PDF/e-post)</FieldLabel>
+              <Select value={language} onValueChange={(v) => setLanguage(v as InvoiceLanguage)} disabled={updateMetadata.isPending}>
+                <SelectTrigger id="language">
+                  <SelectValue placeholder="Välj språk" />
+                </SelectTrigger>
+                <SelectContent>
+                  {invoiceLanguages.map((lang) => (
+                    <SelectItem key={lang} value={lang}>
+                      {invoiceLanguageLabels[lang]}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -1,7 +1,7 @@
 import { jsPDF } from "jspdf";
-import type { Invoice, InvoiceLine, Customer, Currency } from "@/lib/db/schema";
-import { unitLabels } from "@/lib/validations/product";
+import type { Invoice, InvoiceLine, Customer, Currency, InvoiceLanguage } from "@/lib/db/schema";
 import { currencySymbols, currencyLocales } from "@/lib/validations/currency";
+import { getTranslations, getUnitLabels, getLocaleForLanguage } from "@/lib/translations/invoice";
 
 // Partial workspace type for PDF generation - only includes fields actually used
 interface WorkspaceForPdf {
@@ -36,13 +36,21 @@ interface InvoicePdfData {
   lines: InvoiceLine[];
   /** Base64 data URL for QR code (Swish payment) */
   qrCodeDataUrl?: string;
+  /** Invoice language for customer-facing content (defaults to "sv") */
+  language?: InvoiceLanguage;
 }
 
 export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
-  const { workspace, invoice, customer, lines, qrCodeDataUrl } = data;
+  const { workspace, invoice, customer, lines, qrCodeDataUrl, language } = data;
   const doc = new jsPDF();
   const currency = invoice.currency as Currency;
   const currencySymbol = currencySymbols[currency];
+
+  // Get translations for the invoice language
+  const lang = language || (invoice.language as InvoiceLanguage) || "sv";
+  const t = getTranslations(lang);
+  const unitLabels = getUnitLabels(lang);
+  const locale = getLocaleForLanguage(lang);
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 20;
@@ -58,11 +66,11 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
   doc.setFont("helvetica", "normal");
 
   if (workspace.orgNumber) {
-    doc.text(`Org.nr: ${workspace.orgNumber}`, margin, y);
+    doc.text(`${t.orgNumber}: ${workspace.orgNumber}`, margin, y);
     y += 5;
   }
   if (workspace.vatNumber) {
-    doc.text(`VAT-nr: ${workspace.vatNumber}`, margin, y);
+    doc.text(`${t.vatNumber}: ${workspace.vatNumber}`, margin, y);
     y += 5;
   }
   if (workspace.address) {
@@ -87,29 +95,29 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
 
   doc.setFontSize(24);
   doc.setFont("helvetica", "bold");
-  doc.text("FAKTURA", rightX, rightY, { align: "right" });
+  doc.text(t.invoice, rightX, rightY, { align: "right" });
 
   rightY += 10;
   doc.setFontSize(11);
   doc.setFont("helvetica", "normal");
-  doc.text(`Fakturanummer: ${invoice.invoiceNumber}`, rightX, rightY, { align: "right" });
+  doc.text(`${t.invoiceNumber}: ${invoice.invoiceNumber}`, rightX, rightY, { align: "right" });
 
   rightY += 6;
-  doc.text(`Fakturadatum: ${formatDate(invoice.invoiceDate)}`, rightX, rightY, { align: "right" });
+  doc.text(`${t.invoiceDate}: ${formatDate(invoice.invoiceDate, locale)}`, rightX, rightY, { align: "right" });
 
   rightY += 6;
-  doc.text(`Förfallodatum: ${formatDate(invoice.dueDate)}`, rightX, rightY, { align: "right" });
+  doc.text(`${t.dueDate}: ${formatDate(invoice.dueDate, locale)}`, rightX, rightY, { align: "right" });
 
   if (invoice.reference) {
     rightY += 6;
-    doc.text(`Referens: ${invoice.reference}`, rightX, rightY, { align: "right" });
+    doc.text(`${t.reference}: ${invoice.reference}`, rightX, rightY, { align: "right" });
   }
 
   // Customer info
   y = 70;
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.text("Kund", margin, y);
+  doc.text(t.customer, margin, y);
 
   y += 6;
   doc.setFont("helvetica", "normal");
@@ -117,7 +125,7 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
 
   if (customer.orgNumber) {
     y += 5;
-    doc.text(`Org.nr: ${customer.orgNumber}`, margin, y);
+    doc.text(`${t.orgNumber}: ${customer.orgNumber}`, margin, y);
   }
   if (customer.address) {
     y += 5;
@@ -146,16 +154,16 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   let colX = margin + 2;
-  doc.text("Beskrivning", colX, y);
+  doc.text(t.description, colX, y);
   colX += colWidths.desc;
-  doc.text("Antal", colX, y);
+  doc.text(t.quantity, colX, y);
   colX += colWidths.qty;
-  doc.text("Enhet", colX, y);
+  doc.text(t.unit, colX, y);
   colX += colWidths.unit;
-  doc.text("À-pris", colX, y);
+  doc.text(t.unitPrice, colX, y);
   colX += colWidths.price;
-  doc.text("Moms", colX, y);
-  doc.text("Belopp", pageWidth - margin - 2, y, { align: "right" });
+  doc.text(t.vat, colX, y);
+  doc.text(t.amount, pageWidth - margin - 2, y, { align: "right" });
 
   y += 8;
   doc.setFont("helvetica", "normal");
@@ -205,17 +213,17 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
   const totalsX = pageWidth - margin - 60;
 
   doc.setFont("helvetica", "normal");
-  doc.text("Summa exkl. moms:", totalsX, y);
+  doc.text(`${t.subtotalExclVat}:`, totalsX, y);
   doc.text(formatCurrency(parseFloat(invoice.subtotal), currency), pageWidth - margin - 2, y, { align: "right" });
 
   y += 6;
-  doc.text("Moms:", totalsX, y);
+  doc.text(`${t.vatLabel}:`, totalsX, y);
   doc.text(formatCurrency(parseFloat(invoice.vatAmount), currency), pageWidth - margin - 2, y, { align: "right" });
 
   y += 8;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text("Att betala:", totalsX, y);
+  doc.text(`${t.totalToPay}:`, totalsX, y);
   doc.text(formatCurrency(parseFloat(invoice.total), currency) + " " + currencySymbol, pageWidth - margin - 2, y, { align: "right" });
 
   // Payment info section
@@ -223,7 +231,7 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(0);
-  doc.text("Betalningsinformation", margin, y);
+  doc.text(t.paymentInfo, margin, y);
 
   y += 6;
   doc.setFont("helvetica", "normal");
@@ -232,34 +240,34 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
   // Use invoice-specific payment method if set, otherwise show all workspace methods
   if (invoice.paymentMethod && invoice.paymentAccount) {
     const methodLabels: Record<string, string> = {
-      bankgiro: "Bankgiro",
-      plusgiro: "Plusgiro",
-      iban: "IBAN",
-      swish: "Swish",
+      bankgiro: t.bankgiro,
+      plusgiro: t.plusgiro,
+      iban: t.iban,
+      swish: t.swish,
       paypal: "PayPal",
-      custom: "Betalning",
+      custom: t.payment,
     };
-    const label = methodLabels[invoice.paymentMethod] || "Betalning";
+    const label = methodLabels[invoice.paymentMethod] || t.payment;
     doc.text(`${label}: ${invoice.paymentAccount}`, margin, y);
     y += 5;
   } else {
     // Show all available workspace payment methods
     if (workspace.bankgiro) {
-      doc.text(`Bankgiro: ${workspace.bankgiro}`, margin, y);
+      doc.text(`${t.bankgiro}: ${workspace.bankgiro}`, margin, y);
       y += 5;
     }
     if (workspace.plusgiro) {
-      doc.text(`Plusgiro: ${workspace.plusgiro}`, margin, y);
+      doc.text(`${t.plusgiro}: ${workspace.plusgiro}`, margin, y);
       y += 5;
     }
     if (workspace.swishNumber) {
-      doc.text(`Swish: ${workspace.swishNumber}`, margin, y);
+      doc.text(`${t.swish}: ${workspace.swishNumber}`, margin, y);
       y += 5;
     }
     if (workspace.iban) {
-      let ibanText = `IBAN: ${workspace.iban}`;
+      let ibanText = `${t.iban}: ${workspace.iban}`;
       if (workspace.bic) {
-        ibanText += ` / BIC: ${workspace.bic}`;
+        ibanText += ` / ${t.bic}: ${workspace.bic}`;
       }
       doc.text(ibanText, margin, y);
       y += 5;
@@ -268,10 +276,10 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
 
   // Invoice reference with OCR number if available
   if (invoice.ocrNumber) {
-    doc.text(`OCR-nummer: ${invoice.ocrNumber}`, margin, y);
+    doc.text(`${t.ocrNumber}: ${invoice.ocrNumber}`, margin, y);
     y += 5;
   }
-  doc.text(`Märk betalningen med: Faktura ${invoice.invoiceNumber}`, margin, y);
+  doc.text(`${t.markPaymentWith} ${invoice.invoiceNumber}`, margin, y);
   y += 5;
 
   // QR code for Swish payment (right side)
@@ -283,7 +291,7 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
       doc.addImage(qrCodeDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
       doc.setFontSize(7);
       doc.setTextColor(80);
-      doc.text("Betala med Swish", qrX + qrSize / 2, qrY + qrSize + 4, { align: "center" });
+      doc.text(t.payWithSwish, qrX + qrSize / 2, qrY + qrSize + 4, { align: "center" });
       doc.setTextColor(0);
     } catch {
       // Silently ignore QR code errors
@@ -300,7 +308,7 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0);
     doc.text(
-      invoice.rotRutType === "rot" ? "ROT-avdrag" : "RUT-avdrag",
+      invoice.rotRutType === "rot" ? t.rotDeduction : t.rutDeduction,
       margin + 5,
       y + 2
     );
@@ -313,17 +321,17 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
     const deductionAmount = invoice.rotRutDeductionAmount ? parseFloat(invoice.rotRutDeductionAmount) : 0;
     const rate = invoice.rotRutType === "rot" ? "30%" : "50%";
 
-    doc.text(`Arbetskostnad före skattereduktion: ${formatCurrency(laborAmount, currency)} ${currencySymbol}`, margin + 5, y + 9);
-    doc.text(`Material och resekostnader: ${formatCurrency(materialAmount, currency)} ${currencySymbol}`, margin + 5, y + 15);
-    doc.text(`Skattereduktion (${rate}): -${formatCurrency(deductionAmount, currency)} ${currencySymbol}`, margin + 5, y + 21);
+    doc.text(`${t.laborCostBeforeDeduction}: ${formatCurrency(laborAmount, currency)} ${currencySymbol}`, margin + 5, y + 9);
+    doc.text(`${t.materialAndTravelCosts}: ${formatCurrency(materialAmount, currency)} ${currencySymbol}`, margin + 5, y + 15);
+    doc.text(`${t.taxReduction} (${rate}): -${formatCurrency(deductionAmount, currency)} ${currencySymbol}`, margin + 5, y + 21);
 
     // Show customer ROT/RUT info on the right
     const rotRutRightX = pageWidth - margin - 5;
     if (customer.personalNumber) {
-      doc.text(`Personnr: ${customer.personalNumber}`, rotRutRightX, y + 9, { align: "right" });
+      doc.text(`${t.personalNumber}: ${customer.personalNumber}`, rotRutRightX, y + 9, { align: "right" });
     }
     if (customer.propertyDesignation && invoice.rotRutType === "rot") {
-      doc.text(`Fastighet: ${customer.propertyDesignation}`, rotRutRightX, y + 15, { align: "right" });
+      doc.text(`${t.property}: ${customer.propertyDesignation}`, rotRutRightX, y + 15, { align: "right" });
     }
 
     y += 32;
@@ -341,7 +349,7 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
   if (workspace.isVatExempt) {
     hasComplianceNotices = true;
     doc.text(
-      "Undantagen från skatteplikt enligt 18 kap. mervärdesskattelagen",
+      t.vatExemptNotice,
       margin,
       complianceY
     );
@@ -352,13 +360,13 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
   if (invoice.isReverseCharge) {
     hasComplianceNotices = true;
     doc.text(
-      "Omvänd betalningsskyldighet enligt 10 kap. mervärdesskattelagen",
+      t.reverseChargeNotice,
       margin,
       complianceY
     );
     complianceY += 5;
     if (customer.vatNumber) {
-      doc.text(`Köparens VAT-nr: ${customer.vatNumber}`, margin, complianceY);
+      doc.text(`${t.buyerVatNumber}: ${customer.vatNumber}`, margin, complianceY);
       complianceY += 5;
     }
   }
@@ -370,7 +378,7 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
   if (hasMarginScheme) {
     hasComplianceNotices = true;
     doc.text(
-      "Vinstmarginalbeskattning tillämpas enligt 18 kap. mervärdesskattelagen",
+      t.marginSchemeNotice,
       margin,
       complianceY
     );
@@ -407,7 +415,7 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(80);
-    doc.text(`Leveransvillkor: ${invoice.deliveryTerms}`, pageWidth / 2, y, { align: "center" });
+    doc.text(`${t.deliveryTerms}: ${invoice.deliveryTerms}`, pageWidth / 2, y, { align: "center" });
   }
 
   // Payment info footer with dynamic terms and late interest
@@ -416,23 +424,26 @@ export function generateInvoicePdf(data: InvoicePdfData): jsPDF {
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100);
 
-  const paymentTerms = invoice.paymentTermsDays || workspace.paymentTermsDays || 30;
+  const paymentTermsDays = invoice.paymentTermsDays || workspace.paymentTermsDays || 30;
+  const paymentTermsText = t.paymentTermsTemplate.replace("{days}", String(paymentTermsDays));
   const lateInterest = invoice.latePaymentInterest
-    ? `${invoice.latePaymentInterest}% ränta`
+    ? `${invoice.latePaymentInterest}% ${t.latePaymentInterest}`
     : workspace.latePaymentInterest
-    ? `${workspace.latePaymentInterest}% ränta`
-    : "dröjsmålsränta enligt lag";
+    ? `${workspace.latePaymentInterest}% ${t.latePaymentInterest}`
+    : t.latePaymentInterestLegal;
 
-  const footerText = `Betalningsvillkor: ${paymentTerms} dagar netto. Vid försenad betalning debiteras ${lateInterest}.`;
+  const footerText = lang === "sv"
+    ? `${t.paymentTerms}: ${paymentTermsText}. Vid försenad betalning debiteras ${lateInterest}.`
+    : `${t.paymentTerms}: ${paymentTermsText}. Late payment will incur ${lateInterest}.`;
   doc.text(footerText, pageWidth / 2, y, { align: "center" });
 
 
   return doc;
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string, locale: string = "sv-SE"): string {
   const date = new Date(dateStr);
-  return date.toLocaleDateString("sv-SE");
+  return date.toLocaleDateString(locale);
 }
 
 function formatCurrency(value: number, currency: Currency = "SEK"): string {
