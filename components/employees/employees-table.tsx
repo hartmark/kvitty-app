@@ -91,7 +91,7 @@ export function EmployeesTable({
             <TableRow key={employee.id}>
               <TableCell className="px-4 font-medium">
                 <Link
-                  href={`/${workspaceSlug}/personal/${employee.id}`}
+                  href={`/${workspaceSlug}/employees/${employee.id}`}
                   className="hover:underline"
                 >
                   {employee.firstName} {employee.lastName}
@@ -160,7 +160,7 @@ export function EmployeesTable({
                 )}
               </TableCell>
               <TableCell className="px-4">
-                <Link href={`/${workspaceSlug}/personal/${employee.id}`}>
+                <Link href={`/${workspaceSlug}/employees/${employee.id}`}>
                   <Button variant="ghost" size="icon">
                     <ArrowRight className="size-4" />
                   </Button>

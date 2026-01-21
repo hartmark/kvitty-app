@@ -172,7 +172,7 @@ export function BookkeepingPageClient({
                 Du maste skapa en rakenskapsperiod innan du kan borja bokföra.
               </p>
               <Button asChild>
-                <Link href={`/${workspaceSlug}/perioder`}>
+                <Link href={`/${workspaceSlug}/periods`}>
                   Skapa rakenskapsperiod
                 </Link>
               </Button>

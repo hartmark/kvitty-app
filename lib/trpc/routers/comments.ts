@@ -200,7 +200,7 @@ export const commentsRouter = router({
               type: "comment_mention",
               title: `${commenter?.name || "Någon"} nämnde dig i en kommentar`,
               message: input.content.substring(0, 100),
-              link: `/${workspace?.slug}/verifikationer/${input.journalEntryId}`,
+              link: `/${workspace?.slug}/verifications/${input.journalEntryId}`,
             })
           )
         );

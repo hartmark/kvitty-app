@@ -6,6 +6,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { MagnifyingGlass, X, FunnelSimple, Upload, SlidersHorizontal } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ActionButtonGroup } from "@/components/ui/action-button-group";
 import {
   Select,
   SelectContent,
@@ -206,13 +207,16 @@ export function TransactionsPageClient({
               Alla banktransaktioner i bolaget
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setCsvImportOpen(true)}>
-              <Upload className="size-4 mr-2" />
-              Importera CSV
-            </Button>
-            <AddBankTransactionButton workspaceId={workspace.id} />
-          </div>
+          <ActionButtonGroup
+            primaryAction={<AddBankTransactionButton workspaceId={workspace.id} />}
+            moreActions={[
+              {
+                label: "Importera CSV",
+                icon: <Upload className="size-4" />,
+                onClick: () => setCsvImportOpen(true),
+              },
+            ]}
+          />
         </div>
 
         {/* Filters */}

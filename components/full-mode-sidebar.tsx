@@ -235,7 +235,7 @@ export function FullModeSidebar({
                 Faktura
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href={`/${workspace.slug}/personal/lon`}>
+                <Link href={`/${workspace.slug}/employees/payroll`}>
                   <Money className="size-4" weight="duotone" />
                   Lön
                 </Link>
@@ -307,10 +307,10 @@ export function FullModeSidebar({
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
-                      isActive={pathname === `/${workspace.slug}/kunder`}
+                      isActive={pathname === `/${workspace.slug}/customers`}
                       tooltip="Kunder"
                     >
-                      <Link href={`/${workspace.slug}/kunder`}>
+                      <Link href={`/${workspace.slug}/customers`}>
                         <AddressBook className="size-4" weight="duotone" />
                         <span>Kunder</span>
                       </Link>
@@ -319,10 +319,10 @@ export function FullModeSidebar({
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
-                      isActive={pathname === `/${workspace.slug}/fakturor`}
+                      isActive={pathname === `/${workspace.slug}/invoices`}
                       tooltip="Fakturor"
                     >
-                      <Link href={`/${workspace.slug}/fakturor`}>
+                      <Link href={`/${workspace.slug}/invoices`}>
                         <Invoice className="size-4" weight="duotone" />
                         <span>Fakturor</span>
                       </Link>
@@ -331,10 +331,10 @@ export function FullModeSidebar({
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
-                      isActive={pathname === `/${workspace.slug}/produkter`}
+                      isActive={pathname === `/${workspace.slug}/products`}
                       tooltip="Produkter"
                     >
-                      <Link href={`/${workspace.slug}/produkter`}>
+                      <Link href={`/${workspace.slug}/products`}>
                         <Package className="size-4" weight="duotone" />
                         <span>Produkter</span>
                       </Link>
@@ -362,10 +362,10 @@ export function FullModeSidebar({
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
-                      isActive={pathname === `/${workspace.slug}/personal`}
+                      isActive={pathname === `/${workspace.slug}/employees`}
                       tooltip="Personal"
                     >
-                      <Link href={`/${workspace.slug}/personal`}>
+                      <Link href={`/${workspace.slug}/employees`}>
                         <UserList className="size-4" weight="duotone" />
                         <span>Personal</span>
                       </Link>
@@ -374,10 +374,10 @@ export function FullModeSidebar({
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
-                      isActive={pathname.startsWith(`/${workspace.slug}/personal/lon`)}
+                      isActive={pathname.startsWith(`/${workspace.slug}/employees/payroll`)}
                       tooltip="Lönekörningar"
                     >
-                      <Link href={`/${workspace.slug}/personal/lon`}>
+                      <Link href={`/${workspace.slug}/employees/payroll`}>
                         <Money className="size-4" weight="duotone" />
                         <span>Lönekörningar</span>
                       </Link>
@@ -405,10 +405,10 @@ export function FullModeSidebar({
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
-                      isActive={pathname === `/${workspace.slug}/rapporter/resultat`}
+                      isActive={pathname === `/${workspace.slug}/reports/income-statement`}
                       tooltip="Resultatrapport"
                     >
-                      <Link href={`/${workspace.slug}/rapporter/resultat`}>
+                      <Link href={`/${workspace.slug}/reports/income-statement`}>
                         <ChartLine className="size-4" weight="duotone" />
                         <span>Resultatrapport</span>
                       </Link>
@@ -417,10 +417,10 @@ export function FullModeSidebar({
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
-                      isActive={pathname === `/${workspace.slug}/rapporter/balans`}
+                      isActive={pathname === `/${workspace.slug}/reports/balance-sheet`}
                       tooltip="Balansrapport"
                     >
-                      <Link href={`/${workspace.slug}/rapporter/balans`}>
+                      <Link href={`/${workspace.slug}/reports/balance-sheet`}>
                         <Scales className="size-4" weight="duotone" />
                         <span>Balansrapport</span>
                       </Link>
@@ -429,10 +429,10 @@ export function FullModeSidebar({
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
-                      isActive={pathname === `/${workspace.slug}/rapporter/moms`}
+                      isActive={pathname === `/${workspace.slug}/reports/vat`}
                       tooltip="Momsrapport"
                     >
-                      <Link href={`/${workspace.slug}/rapporter/moms`}>
+                      <Link href={`/${workspace.slug}/reports/vat`}>
                         <Percent className="size-4" weight="duotone" />
                         <span>Momsrapport</span>
                       </Link>
@@ -460,10 +460,10 @@ export function FullModeSidebar({
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
-                      isActive={pathname === `/${workspace.slug}/bokslut`}
+                      isActive={pathname === `/${workspace.slug}/annual-closing`}
                       tooltip="Årsbokslut"
                     >
-                      <Link href={`/${workspace.slug}/bokslut`}>
+                      <Link href={`/${workspace.slug}/annual-closing`}>
                         <BookOpen className="size-4" weight="duotone" />
                         <span>Årsbokslut</span>
                       </Link>
@@ -547,7 +547,7 @@ export function FullModeSidebar({
                   sideOffset={4}
                 >
                   <DropdownMenuItem asChild>
-                    <Link href="/user/installningar">
+                    <Link href="/user/settings">
                       <User className="size-4 mr-2" weight="duotone" />
                       Inställningar
                     </Link>

@@ -43,7 +43,7 @@ export function PayrollPageClient({ workspaceSlug }: PayrollPageClientProps) {
       <PageHeader
         workspaceSlug={workspaceSlug}
         workspaceName={workspace.name}
-        breadcrumbs={[{ label: "Personal", href: `/${workspaceSlug}/personal` }]}
+        breadcrumbs={[{ label: "Personal", href: `/${workspaceSlug}/employees` }]}
         currentPage="Lönekörningar"
       />
 

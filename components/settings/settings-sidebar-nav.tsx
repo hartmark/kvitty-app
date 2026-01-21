@@ -33,7 +33,7 @@ const navItems: NavItem[] = [
 
 export function SettingsSidebarNav({ workspaceSlug }: SettingsSidebarNavProps) {
   const pathname = usePathname();
-  const basePath = `/${workspaceSlug}/installningar`;
+  const basePath = `/${workspaceSlug}/settings`;
 
   return (
     <nav className="flex flex-col gap-1">

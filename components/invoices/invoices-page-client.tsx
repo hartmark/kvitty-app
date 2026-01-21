@@ -159,7 +159,7 @@ export function InvoicesPageClient() {
         description: `Ny faktura #${newInvoice.invoiceNumber} skapad som utkast.`,
       });
       // Navigate to the new invoice
-      router.push(`/${workspace.slug}/fakturor/${newInvoice.id}`);
+      router.push(`/${workspace.slug}/invoices/${newInvoice.id}`);
     },
     onError: (error) => {
       toast.error("Kunde inte duplicera faktura", { description: error.message });

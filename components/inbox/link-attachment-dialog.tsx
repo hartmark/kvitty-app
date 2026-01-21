@@ -162,7 +162,7 @@ export function LinkAttachmentDialog({
                   Du måste skapa en räkenskapsperiod innan du kan koppla bilagor till verifikationer.
                 </p>
                 <a
-                  href={`/${workspace.slug}/perioder`}
+                  href={`/${workspace.slug}/periods`}
                   className="text-sm text-primary hover:underline mt-2 inline-block"
                 >
                   Gå till perioder

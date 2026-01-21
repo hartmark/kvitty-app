@@ -82,6 +82,7 @@ export function ContactSettingsForm({ workspace }: ContactSettingsFormProps) {
   function onSubmit(data: FormValues) {
     updateMutation.mutate({
       workspaceId: data.workspaceId,
+      name: workspace.name,
       contactName: data.contactName || null,
       contactPhone: data.contactPhone || null,
       contactEmail: data.contactEmail || null,

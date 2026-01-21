@@ -109,7 +109,7 @@ export function CustomersTable({
                     asChild
                     title="Visa fakturor"
                   >
-                    <Link href={`/${workspace.slug}/fakturor?customerId=${customer.id}`}>
+                    <Link href={`/${workspace.slug}/invoices?customerId=${customer.id}`}>
                       <Clock className="size-4" />
                     </Link>
                   </Button>

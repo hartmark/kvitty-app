@@ -139,7 +139,7 @@ export function NotificationCenter() {
         <Separator />
 
         <div className="p-2">
-          <Link href={`/${workspaceSlug}/notifikationer`}>
+          <Link href={`/${workspaceSlug}/notifications`}>
             <Button variant="ghost" className="w-full" size="sm">
               Visa alla notifikationer
             </Button>

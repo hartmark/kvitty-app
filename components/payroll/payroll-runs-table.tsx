@@ -115,7 +115,7 @@ export function PayrollRunsTable({
                     </Badge>
                   </TableCell>
                   <TableCell className="px-4">
-                    <Link href={`/${workspaceSlug}/personal/lon/${run.id}`}>
+                    <Link href={`/${workspaceSlug}/employees/payroll/${run.id}`}>
                       <Button variant="ghost" size="sm">
                         Öppna
                       </Button>

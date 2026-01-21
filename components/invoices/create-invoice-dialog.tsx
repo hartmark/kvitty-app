@@ -92,7 +92,7 @@ export function CreateInvoiceDialog({
       utils.invoices.list.invalidate({ workspaceId });
       onOpenChange(false);
       // Redirect to the invoice detail page
-      router.push(`/${workspace.slug}/fakturor/${invoice.id}`);
+      router.push(`/${workspace.slug}/invoices/${invoice.id}`);
     },
   });
 

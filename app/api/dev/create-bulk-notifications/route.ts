@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         type: types[i % types.length],
         title: `${titles[i % titles.length]} #${i + 1}`,
         message: messages[i % messages.length] ?? undefined,
-        link: i % 3 === 0 ? `/${workspaceId}/notifikationer` : undefined,
+        link: i % 3 === 0 ? `/${workspaceId}/notifications` : undefined,
       });
       notifications.push(notification);
     }

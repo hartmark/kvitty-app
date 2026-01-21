@@ -184,8 +184,8 @@ export function PayrollRunPageClient({ runId, workspaceSlug }: PayrollRunPageCli
         workspaceSlug={workspaceSlug}
         workspaceName={workspace.name}
         breadcrumbs={[
-          { label: "Personal", href: `/${workspaceSlug}/personal` },
-          { label: "Lönekörningar", href: `/${workspaceSlug}/personal/lon` },
+          { label: "Personal", href: `/${workspaceSlug}/employees` },
+          { label: "Lönekörningar", href: `/${workspaceSlug}/employees/payroll` },
         ]}
         currentPage={isLoading ? "Laddar..." : `${run!.period.substring(0, 4)}-${run!.period.substring(4)} • Körning ${run!.runNumber}`}
       />

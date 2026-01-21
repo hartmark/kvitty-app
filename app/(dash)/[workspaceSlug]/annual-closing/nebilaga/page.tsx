@@ -53,7 +53,7 @@ export default async function NebilagaPage({
 
   // Check if workspace is enskild_firma
   if (workspace.businessType !== "enskild_firma") {
-    redirect(`/${workspaceSlug}/bokslut`);
+    redirect(`/${workspaceSlug}/annual-closing`);
   }
 
   // Get fiscal periods
@@ -63,7 +63,7 @@ export default async function NebilagaPage({
   });
 
   if (periods.length === 0) {
-    redirect(`/${workspaceSlug}/perioder`);
+    redirect(`/${workspaceSlug}/periods`);
   }
 
   // Determine selected period

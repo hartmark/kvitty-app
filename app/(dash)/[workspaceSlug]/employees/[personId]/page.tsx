@@ -117,7 +117,7 @@ export default async function PersonalDetailPage({
   return (
     <>
       <PageHeader
-        breadcrumbs={[{ label: "Personal", href: `/${workspaceSlug}/personal` }]}
+        breadcrumbs={[{ label: "Personal", href: `/${workspaceSlug}/employees` }]}
         currentPage={`${employee.firstName} ${employee.lastName}`}
         actions={
           <PersonalDetailActions

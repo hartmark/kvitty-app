@@ -57,9 +57,9 @@ export function NavPeriods({
               <SidebarMenuButton
                 asChild
                 tooltip="Transaktioner"
-                isActive={pathname === `/${workspaceSlug}/transaktioner`}
+                isActive={pathname === `/${workspaceSlug}/transactions`}
               >
-                <Link href={`/${workspaceSlug}/transaktioner`}>
+                <Link href={`/${workspaceSlug}/transactions`}>
                   <Swap className="size-4" weight="duotone" />
                   <span>Transaktioner</span>
                 </Link>
@@ -84,9 +84,9 @@ export function NavPeriods({
                 <SidebarMenuButton
                   asChild
                   tooltip="Verifikationer"
-                  isActive={pathname === `/${workspaceSlug}/verifikationer`}
+                  isActive={pathname === `/${workspaceSlug}/verifications`}
                 >
-                  <Link href={`/${workspaceSlug}/verifikationer`}>
+                  <Link href={`/${workspaceSlug}/verifications`}>
                     <FileText className="size-4" weight="duotone" />
                     <span>Verifikationer</span>
                   </Link>
@@ -98,9 +98,9 @@ export function NavPeriods({
               <SidebarMenuButton
                 asChild
                 tooltip="Perioder"
-                isActive={pathname === `/${workspaceSlug}/perioder`}
+                isActive={pathname === `/${workspaceSlug}/periods`}
               >
-                <Link href={`/${workspaceSlug}/perioder`}>
+                <Link href={`/${workspaceSlug}/periods`}>
                   <CalendarBlank className="size-4" weight="duotone" />
                   <span>Perioder</span>
                 </Link>

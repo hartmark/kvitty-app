@@ -534,7 +534,7 @@ export function BokslutClient({
             <Button
               variant="outline"
               onClick={() =>
-                router.push(`/${workspaceSlug}/${currentPeriod?.label || ""}/verifikationer`)
+                router.push(`/${workspaceSlug}/${currentPeriod?.label || ""}/verifications`)
               }
             >
               Visa bokföring
@@ -796,7 +796,7 @@ export function BokslutClient({
                 Dina dokument
               </div>
               <a
-                href={`/${workspaceSlug}/bokslut/nebilaga?period=${selectedPeriodId}`}
+                href={`/${workspaceSlug}/annual-closing/nebilaga?period=${selectedPeriodId}`}
                 className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors group"
               >
                 <div className="flex items-center gap-3">
@@ -819,7 +819,7 @@ export function BokslutClient({
                 <AlertDescription>
                   För att fylla i NE-bilagan behöver du ange ditt personnummer i{" "}
                   <a
-                    href={`/${workspaceSlug}/installningar`}
+                    href={`/${workspaceSlug}/settings`}
                     className="underline hover:text-foreground"
                   >
                     inställningarna

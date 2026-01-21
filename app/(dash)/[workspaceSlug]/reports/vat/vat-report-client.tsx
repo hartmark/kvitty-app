@@ -266,12 +266,14 @@ export function VatReportClient({
 
         <Badge variant="secondary">{frequencyLabel} momsrapportering</Badge>
 
-        <ReportExportMenu
-          onExportPDF={handleExportPDF}
-          onExportCSV={handleExportCSV}
-          isLoading={isExporting}
-          disabled={!vatReport}
-        />
+        <div className="ml-auto">
+          <ReportExportMenu
+            onExportPDF={handleExportPDF}
+            onExportCSV={handleExportCSV}
+            isLoading={isExporting}
+            disabled={!vatReport}
+          />
+        </div>
       </div>
 
       {vatReport && (

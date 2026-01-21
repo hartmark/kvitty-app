@@ -103,6 +103,7 @@ export function PaymentSettingsForm({ workspace }: PaymentSettingsFormProps) {
   function onSubmit(data: FormValues) {
     updateMutation.mutate({
       workspaceId: data.workspaceId,
+      name: workspace.name,
       bankgiro: data.bankgiro || null,
       plusgiro: data.plusgiro || null,
       iban: data.iban || null,

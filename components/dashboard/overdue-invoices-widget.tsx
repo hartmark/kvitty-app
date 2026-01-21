@@ -115,7 +115,7 @@ export function OverdueInvoicesWidget({
               <div className="text-sm font-semibold text-right">
                 {formatCurrency(invoice.total)}
               </div>
-              <Link href={`/${workspaceSlug}/fakturor/${invoice.id}`}>
+              <Link href={`/${workspaceSlug}/invoices/${invoice.id}`}>
                 <Button variant="outline" size="sm">
                   Öppna
                 </Button>

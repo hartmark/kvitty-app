@@ -118,7 +118,7 @@ export function WorkspaceSwitcher({
             })}
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href={`/${currentWorkspace.slug}/medlemmar`} className="flex items-center gap-2">
+              <Link href={`/${currentWorkspace.slug}/members`} className="flex items-center gap-2">
                 <Users className="size-4" weight="duotone" />
                 <div className="flex flex-row items-center gap-1 justify-between flex-1 min-w-0">
                   <span className="font-medium">Medlemmar</span>{" "}<span className=" text-muted-foreground">({memberCount})</span>
@@ -126,7 +126,7 @@ export function WorkspaceSwitcher({
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href={`/${currentWorkspace.slug}/installningar`} className="flex items-center gap-2">
+              <Link href={`/${currentWorkspace.slug}/settings`} className="flex items-center gap-2">
                 <Gear className="size-4" weight="duotone" />
                 <div className="flex flex-col flex-1 min-w-0">
                   <span className="font-medium">Inställningar</span>

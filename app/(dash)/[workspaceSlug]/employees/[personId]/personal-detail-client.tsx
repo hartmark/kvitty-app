@@ -143,7 +143,7 @@ export function PersonalDetailClient({
                   </TableCell>
                   <TableCell className="px-4">
                     <Link
-                      href={`/${workspaceSlug}/personal/lon/${entry.payrollRun.id}`}
+                      href={`/${workspaceSlug}/employees/payroll/${entry.payrollRun.id}`}
                     >
                       <Button variant="ghost" size="sm">
                         Öppna

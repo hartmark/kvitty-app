@@ -239,7 +239,7 @@ export function InvoicesTable({
               <TableRow key={invoice.id} className="cursor-pointer hover:bg-muted/50">
                 <TableCell className="px-4">
                   <Link
-                    href={`/${workspaceSlug}/fakturor/${invoice.id}`}
+                    href={`/${workspaceSlug}/invoices/${invoice.id}`}
                     className="font-mono hover:underline"
                   >
                     {invoice.invoiceNumber}
@@ -247,7 +247,7 @@ export function InvoicesTable({
                 </TableCell>
                 <TableCell className="px-4">
                   <Link
-                    href={`/${workspaceSlug}/fakturor/${invoice.id}`}
+                    href={`/${workspaceSlug}/invoices/${invoice.id}`}
                     className="hover:underline"
                   >
                     {invoice.customer.name}
@@ -275,7 +275,7 @@ export function InvoicesTable({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="min-w-48">
                       <DropdownMenuItem asChild>
-                        <Link href={`/${workspaceSlug}/fakturor/${invoice.id}`} className="whitespace-nowrap">
+                        <Link href={`/${workspaceSlug}/invoices/${invoice.id}`} className="whitespace-nowrap">
                           <Eye className="size-4 mr-2" />
                           Visa faktura
                         </Link>

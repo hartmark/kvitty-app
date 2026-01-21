@@ -136,7 +136,7 @@ export function AGIDeadlinesWidget({
                       </div>
                     </div>
                   </div>
-                  <Link href={`/${workspaceSlug}/personal/lon/${deadline.id}`}>
+                  <Link href={`/${workspaceSlug}/employees/payroll/${deadline.id}`}>
                     <Button variant="outline" size="sm">
                       Öppna
                     </Button>
@@ -167,7 +167,7 @@ export function AGIDeadlinesWidget({
                       </div>
                     </div>
                   </div>
-                  <Link href={`/${workspaceSlug}/personal/lon/${deadline.id}`}>
+                  <Link href={`/${workspaceSlug}/employees/payroll/${deadline.id}`}>
                     <Button variant="ghost" size="sm">
                       Öppna
                     </Button>
@@ -198,7 +198,7 @@ export function AGIDeadlinesWidget({
                       </div>
                     </div>
                   </div>
-                  <Link href={`/${workspaceSlug}/personal/lon/${deadline.id}`}>
+                  <Link href={`/${workspaceSlug}/employees/payroll/${deadline.id}`}>
                     <Button variant="ghost" size="sm">
                       Öppna
                     </Button>

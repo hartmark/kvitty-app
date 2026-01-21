@@ -80,7 +80,7 @@ export function NebilagaPageClient({
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link href={`/${workspaceSlug}/bokslut`}>
+          <Link href={`/${workspaceSlug}/annual-closing`}>
             <ArrowLeft className="size-4" />
           </Link>
         </Button>

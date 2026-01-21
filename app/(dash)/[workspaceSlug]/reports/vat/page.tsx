@@ -55,7 +55,7 @@ export default async function VatReportPage({
       <PageHeader
         workspaceSlug={workspaceSlug}
         workspaceName={workspace.name}
-        breadcrumbs={[{ label: "Rapporter", href: `/${workspaceSlug}/rapporter/moms` }]}
+        breadcrumbs={[{ label: "Rapporter", href: `/${workspaceSlug}/reports/vat` }]}
         currentPage="Momsrapport"
       />
       <div className="flex flex-1 flex-col gap-6 p-4 pt-0">

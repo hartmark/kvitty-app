@@ -5,13 +5,13 @@ import { workspaces, workspaceMembers, fiscalPeriods } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { getSession } from "@/lib/session";
 import { PageHeader } from "@/components/layout/page-header";
-import { BalanceSheetClient } from "./balance-sheet-client";
+import { IncomeStatementClient } from "./income-statement-client";
 
 export const metadata: Metadata = {
-  title: "Balansrapport - Kvitty",
+  title: "Resultatrapport - Kvitty",
 };
 
-export default async function BalanceSheetPage({
+export default async function IncomeStatementPage({
   params,
 }: {
   params: Promise<{ workspaceSlug: string }>;
@@ -54,14 +54,14 @@ export default async function BalanceSheetPage({
       <PageHeader
         workspaceSlug={workspaceSlug}
         workspaceName={workspace.name}
-        breadcrumbs={[{ label: "Rapporter", href: `/${workspaceSlug}/rapporter/balans` }]}
-        currentPage="Balansrapport"
+        breadcrumbs={[{ label: "Rapporter", href: `/${workspaceSlug}/reports/income-statement` }]}
+        currentPage="Resultatrapport"
       />
       <div className="flex flex-1 flex-col gap-6 p-4 pt-0">
         <div>
-          <h1 className="text-2xl font-bold">Balansrapport</h1>
+          <h1 className="text-2xl font-bold">Resultatrapport</h1>
           <p className="text-muted-foreground text-sm">
-            Översikt över tillgångar, skulder och eget kapital
+            Översikt över intäkter och kostnader
           </p>
         </div>
 
@@ -69,11 +69,11 @@ export default async function BalanceSheetPage({
           <div className="text-center py-12 text-muted-foreground">
             <p>Inga räkenskapsperioder finns.</p>
             <p className="text-sm mt-1">
-              Skapa en period för att se balansrapporten.
+              Skapa en period för att se resultatrapporten.
             </p>
           </div>
         ) : (
-          <BalanceSheetClient
+          <IncomeStatementClient
             workspaceId={workspace.id}
             workspaceName={workspace.name}
             workspaceOrgName={workspace.orgName}

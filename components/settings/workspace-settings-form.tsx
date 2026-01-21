@@ -151,7 +151,7 @@ export function WorkspaceSettingsForm({
   const updateMutation = trpc.workspaces.update.useMutation({
     onSuccess: (updated) => {
       if (updated.slug !== workspace.slug) {
-        router.push(`/${updated.slug}/installningar`);
+        router.push(`/${updated.slug}/settings`);
       } else {
         reset({
           workspaceId: updated.id,

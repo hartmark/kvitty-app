@@ -91,7 +91,7 @@ export function InboxPageClient() {
           <p className="text-muted-foreground">
             Konfigurera din inkorg i{" "}
             <a
-              href={`/${workspace.slug}/installningar`}
+              href={`/${workspace.slug}/settings`}
               className="text-primary hover:underline"
             >
               inställningar

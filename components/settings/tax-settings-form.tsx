@@ -229,6 +229,7 @@ export function TaxSettingsForm({ workspace }: TaxSettingsFormProps) {
   function onSubmit(data: FormValues) {
     updateMutation.mutate({
       workspaceId: data.workspaceId,
+      name: workspace.name,
       vatReportingFrequency: data.vatReportingFrequency || null,
       defaultUtlaggAccount: data.defaultUtlaggAccount,
       vatNumber: data.vatNumber || null,

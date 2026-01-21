@@ -62,7 +62,7 @@ export function SimpleActivityFeed({ items, workspaceSlug }: SimpleActivityFeedP
         {items.map((item) => (
           <Link
             key={item.id}
-            href={`/${workspaceSlug}/transaktioner?selected=${item.id}`}
+            href={`/${workspaceSlug}/transactions?selected=${item.id}`}
             className="flex items-start justify-between gap-4 group"
           >
             <div className="min-w-0 flex-1">

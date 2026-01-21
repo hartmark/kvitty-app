@@ -78,14 +78,14 @@ export function CommandMenu() {
                     id: "employees",
                     label: "Personal",
                     icon: UserList,
-                    href: `/${workspace.slug}/personal`,
+                    href: `/${workspace.slug}/employees`,
                     group: "Personal & Löner",
                 },
                 {
                     id: "payroll",
                     label: "Lönekörningar",
                     icon: Money,
-                    href: `/${workspace.slug}/personal/lon`,
+                    href: `/${workspace.slug}/employees/payroll`,
                     group: "Personal & Löner",
                 },
                 {
@@ -99,14 +99,14 @@ export function CommandMenu() {
                     id: "customers",
                     label: "Kunder",
                     icon: AddressBook,
-                    href: `/${workspace.slug}/kunder`,
+                    href: `/${workspace.slug}/customers`,
                     group: "Försäljning",
                 },
                 {
                     id: "invoices",
                     label: "Fakturor",
                     icon: Invoice,
-                    href: `/${workspace.slug}/fakturor`,
+                    href: `/${workspace.slug}/invoices`,
                     group: "Försäljning",
                 }
             );
@@ -139,21 +139,21 @@ export function CommandMenu() {
                 id: "members",
                 label: "Medlemmar",
                 icon: Users,
-                href: `/${workspace.slug}/medlemmar`,
+                href: `/${workspace.slug}/members`,
                 group: "Inställningar",
             },
             {
                 id: "workspace-settings",
                 label: "Inställningar",
                 icon: Gear,
-                href: `/${workspace.slug}/installningar`,
+                href: `/${workspace.slug}/settings`,
                 group: "Inställningar",
             },
             {
                 id: "user-settings",
                 label: "Användarinställningar",
                 icon: User,
-                href: "/user/installningar",
+                href: "/user/settings",
                 group: "Inställningar",
             }
         );

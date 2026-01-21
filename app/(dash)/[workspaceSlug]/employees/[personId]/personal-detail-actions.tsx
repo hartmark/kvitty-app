@@ -143,7 +143,7 @@ export function PersonalDetailActions({ employee }: PersonalDetailActionsProps) 
   const archiveEmployee = trpc.employees.archive.useMutation({
     onSuccess: () => {
       utils.employees.list.invalidate({ workspaceId: workspace.id });
-      router.push(`/${workspace.slug}/personal`);
+      router.push(`/${workspace.slug}/employees`);
     },
   });
 

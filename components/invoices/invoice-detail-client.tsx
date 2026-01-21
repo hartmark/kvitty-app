@@ -56,7 +56,7 @@ export function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientProps) {
   });
 
   const deleteInvoice = trpc.invoices.delete.useMutation({
-    onSuccess: () => router.push(`/${workspace.slug}/fakturor`),
+    onSuccess: () => router.push(`/${workspace.slug}/invoices`),
   });
 
   const addTextLine = trpc.invoices.addLine.useMutation({
@@ -100,7 +100,7 @@ export function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientProps) {
       <div className="p-6 text-center">
         <p className="text-muted-foreground">Fakturan hittades inte</p>
         <Button asChild variant="outline" className="mt-4">
-          <Link href={`/${workspace.slug}/fakturor`}>Tillbaka till fakturor</Link>
+          <Link href={`/${workspace.slug}/invoices`}>Tillbaka till fakturor</Link>
         </Button>
       </div>
     );
@@ -118,7 +118,7 @@ export function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientProps) {
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-4 flex-1 min-w-0">
           <Button asChild variant="ghost" size="icon" className="shrink-0">
-            <Link href={`/${workspace.slug}/fakturor`}>
+            <Link href={`/${workspace.slug}/invoices`}>
               <ArrowLeft className="size-4" />
             </Link>
           </Button>
